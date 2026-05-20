@@ -190,17 +190,22 @@ export default async function HomePage({
       : `${search.results.length} 결과`;
 
   // 카드 종류별로 분리해서 영역화
-  const cardResults = search.results.flatMap((r) => {
+  type CardResult =
+    | { kind: 'show'; key: string; data: NonNullable<ReturnType<typeof showMap.get>> }
+    | { kind: 'festival'; key: string; data: NonNullable<ReturnType<typeof festivalMap.get>> }
+    | { kind: 'artist'; key: string; data: NonNullable<ReturnType<typeof artistMap.get>> };
+
+  const cardResults: CardResult[] = search.results.flatMap<CardResult>((r) => {
     if (r.kind === 'show') {
       const data = showMap.get(r.id);
-      return data ? [{ kind: 'show' as const, key: r.id, data }] : [];
+      return data ? [{ kind: 'show', key: r.id, data }] : [];
     }
     if (r.kind === 'festival') {
       const data = festivalMap.get(r.id);
-      return data ? [{ kind: 'festival' as const, key: r.id, data }] : [];
+      return data ? [{ kind: 'festival', key: r.id, data }] : [];
     }
     const data = artistMap.get(r.id);
-    return data ? [{ kind: 'artist' as const, key: r.id, data }] : [];
+    return data ? [{ kind: 'artist', key: r.id, data }] : [];
   });
 
   const artistCards = cardResults.filter((c) => c.kind === 'artist');
