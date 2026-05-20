@@ -1,0 +1,26 @@
+{
+  "name": "mft",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Korean indie concert/festival discovery & archive platform",
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm --filter @mft/web dev",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "db:generate": "pnpm --filter @mft/db prisma:generate",
+    "db:migrate": "pnpm --filter @mft/db prisma:migrate",
+    "db:studio": "pnpm --filter @mft/db prisma:studio"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.0",
+    "tsx": "^4.22.3",
+    "typescript": "^5.6.0"
+  },
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}

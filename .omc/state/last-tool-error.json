@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__Claude_in_Chrome__read_page",
+  "tool_input_preview": "{\"tabId\":913256402,\"depth\":5}",
+  "error": "Permission denied for reading pages on this domain",
+  "timestamp": "2026-05-20T11:53:12.136Z",
+  "retry_count": 1
+}

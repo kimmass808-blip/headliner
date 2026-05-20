@@ -1,0 +1,78 @@
+[
+  {
+    "_comment": "이 파일을 dataset.json으로 복사 후 실제 IG 게시물 텍스트와 레이블을 채우세요.",
+    "_format": {
+      "id": "고유 ID (예: s001, f001, sl001, u001, adv001)",
+      "rawText": "IG 게시물 원문 텍스트",
+      "expectedPostType": "single_show | festival_lineup | setlist | unrelated",
+      "isAdversarial": "경계 케이스 여부 (true/false)",
+      "adversarialNote": "경계 케이스 설명 (isAdversarial=true인 경우)",
+      "expectedExtraction": {
+        "_note": "선택적. 추출 정확도 평가 시 사용",
+        "date": "YYYY-MM-DD | null",
+        "venueText": "공연장명 | null",
+        "artistNames": ["아티스트1"]
+      }
+    }
+  },
+  {
+    "id": "s001",
+    "rawText": "🎸 [공연 안내]\n일시: 2025년 3월 15일 (토) 오후 7시\n장소: 홍대 클럽 FF\n아티스트: 새소년\n예매: https://ticket.example.com/abc",
+    "expectedPostType": "single_show",
+    "isAdversarial": false,
+    "adversarialNote": null,
+    "expectedExtraction": {
+      "date": "2025-03-15",
+      "venueText": "홍대 클럽 FF",
+      "artistNames": ["새소년"]
+    }
+  },
+  {
+    "id": "f001",
+    "rawText": "🎪 인디서울 페스티벌 2025 라인업 공개!\n📅 2025년 8월 23~24일\n📍 올림픽공원\n\nDAY 1: @saesonnyeon @jannabi_official\nDAY 2: @silicagel_band @hyukoh",
+    "expectedPostType": "festival_lineup",
+    "isAdversarial": false,
+    "adversarialNote": null,
+    "expectedExtraction": {
+      "date": "2025-08-23",
+      "venueText": "올림픽공원",
+      "artistNames": ["새소년", "잔나비", "실리카겔", "혁오"]
+    }
+  },
+  {
+    "id": "sl001",
+    "rawText": "오늘 공연 셋리스트 🎵\n1. 곡명A\n2. 곡명B\n3. 곡명C (앙코르)\n\n와주신 모든 분들 감사합니다 💛",
+    "expectedPostType": "setlist",
+    "isAdversarial": false,
+    "adversarialNote": null,
+    "expectedExtraction": null
+  },
+  {
+    "id": "u001",
+    "rawText": "오늘 날씨 너무 좋다 ☀️ 카페에서 작업 중 📝 #일상 #홍대 #카페",
+    "expectedPostType": "unrelated",
+    "isAdversarial": false,
+    "adversarialNote": null,
+    "expectedExtraction": null
+  },
+  {
+    "id": "adv001",
+    "rawText": "🎸 스페셜 합동공연\n@band_a X @band_b X @band_c X @band_d X @band_e\n2025년 5월 3일 | 홍대 롤링홀\n5팀이 함께하는 특별한 밤",
+    "expectedPostType": "single_show",
+    "isAdversarial": true,
+    "adversarialNote": "5팀 합동공연 — single_show vs festival_lineup 경계 케이스",
+    "expectedExtraction": {
+      "date": "2025-05-03",
+      "venueText": "홍대 롤링홀",
+      "artistNames": ["band_a", "band_b", "band_c", "band_d", "band_e"]
+    }
+  },
+  {
+    "id": "adv002",
+    "rawText": "공연 취소 안내\n부득이한 사정으로 3월 20일 예정이었던 공연이 취소되었습니다.\n이미 예매하신 분들께 진심으로 사과드립니다.",
+    "expectedPostType": "unrelated",
+    "isAdversarial": true,
+    "adversarialNote": "공연 취소 공지 — unrelated vs single_show 경계 케이스",
+    "expectedExtraction": null
+  }
+]

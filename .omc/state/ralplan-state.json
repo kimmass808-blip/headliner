@@ -1,0 +1,11 @@
+{
+  "active": false,
+  "current_phase": "handoff-to-team",
+  "completed_at": "2026-05-19T10:00:00Z",
+  "_meta": {
+    "mode": "ralplan",
+    "sessionId": null,
+    "updatedAt": "2026-05-19T10:06:21.255Z",
+    "updatedBy": "state_write_tool"
+  }
+}

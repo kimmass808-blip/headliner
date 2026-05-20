@@ -1,0 +1,291 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1779274483234,
+  "projectRoot": "/Users/k5d/Desktop/claude/mft",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": ">=20.0.0",
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      }
+    ],
+    "frameworks": [],
+    "packageManager": "pnpm",
+    "runtime": "Node.js 20.0.0"
+  },
+  "build": {
+    "buildCommand": "pnpm build",
+    "testCommand": "pnpm test",
+    "lintCommand": "pnpm lint",
+    "devCommand": "pnpm dev",
+    "scripts": {
+      "build": "pnpm -r build",
+      "dev": "pnpm --filter @mft/web dev",
+      "lint": "pnpm -r lint",
+      "typecheck": "pnpm -r typecheck",
+      "test": "pnpm -r test",
+      "db:generate": "pnpm --filter @mft/db prisma:generate",
+      "db:migrate": "pnpm --filter @mft/db prisma:migrate",
+      "db:studio": "pnpm --filter @mft/db prisma:studio"
+    }
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": true,
+    "workspaces": [],
+    "mainDirectories": [
+      "docs"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "_thinking": {
+      "path": "_thinking",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1779274483114,
+      "keyFiles": []
+    },
+    "apps": {
+      "path": "apps",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1779274483115,
+      "keyFiles": []
+    },
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 2,
+      "lastAccessed": 1779274483123,
+      "keyFiles": [
+        "getting-started.md",
+        "phase0-search-spike.md"
+      ]
+    },
+    "packages": {
+      "path": "packages",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1779274483124,
+      "keyFiles": []
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "scripts/seed-pentaport.ts",
+      "accessCount": 9,
+      "lastAccessed": 1779281717453,
+      "type": "file"
+    },
+    {
+      "path": "scripts/dedupe-festivals.ts",
+      "accessCount": 8,
+      "lastAccessed": 1779280775307,
+      "type": "file"
+    },
+    {
+      "path": "scripts/import-festivallife.ts",
+      "accessCount": 7,
+      "lastAccessed": 1779280469129,
+      "type": "file"
+    },
+    {
+      "path": "crawler/analyze/festivallife.py",
+      "accessCount": 5,
+      "lastAccessed": 1779278604029,
+      "type": "file"
+    },
+    {
+      "path": "crawler/analyze/festivallife-concert.sh",
+      "accessCount": 5,
+      "lastAccessed": 1779286890918,
+      "type": "file"
+    },
+    {
+      "path": "apps/web/app/page.tsx",
+      "accessCount": 4,
+      "lastAccessed": 1779279773787,
+      "type": "file"
+    },
+    {
+      "path": "apps/web/app/shows/[id]/page.tsx",
+      "accessCount": 4,
+      "lastAccessed": 1779280453125,
+      "type": "file"
+    },
+    {
+      "path": "packages/canonicalize/src/instagram-url.ts",
+      "accessCount": 3,
+      "lastAccessed": 1779276089516,
+      "type": "file"
+    },
+    {
+      "path": "apps/web/components/SearchForm.tsx",
+      "accessCount": 3,
+      "lastAccessed": 1779279071333,
+      "type": "file"
+    },
+    {
+      "path": "apps/web/app/festivals/[id]/page.tsx",
+      "accessCount": 3,
+      "lastAccessed": 1779279778305,
+      "type": "file"
+    },
+    {
+      "path": "apps/web/components/BrandHeader.tsx",
+      "accessCount": 3,
+      "lastAccessed": 1779281165428,
+      "type": "file"
+    },
+    {
+      "path": "scripts/enrich-pentaport-2026.ts",
+      "accessCount": 3,
+      "lastAccessed": 1779281395474,
+      "type": "file"
+    },
+    {
+      "path": "apps/web/components/ArtistResultCard.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1779280492873,
+      "type": "file"
+    },
+    {
+      "path": "package.json",
+      "accessCount": 1,
+      "lastAccessed": 1779274496547,
+      "type": "file"
+    },
+    {
+      "path": "README.md",
+      "accessCount": 1,
+      "lastAccessed": 1779274497875,
+      "type": "file"
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "accessCount": 1,
+      "lastAccessed": 1779274498623,
+      "type": "file"
+    },
+    {
+      "path": "packages/crawler/package.json",
+      "accessCount": 1,
+      "lastAccessed": 1779274505059,
+      "type": "file"
+    },
+    {
+      "path": "apps/web/package.json",
+      "accessCount": 1,
+      "lastAccessed": 1779274511903,
+      "type": "file"
+    },
+    {
+      "path": "packages/crawler/README.md",
+      "accessCount": 1,
+      "lastAccessed": 1779274513093,
+      "type": "file"
+    },
+    {
+      "path": "packages/db/prisma/schema.prisma",
+      "accessCount": 1,
+      "lastAccessed": 1779274513492,
+      "type": "file"
+    },
+    {
+      "path": "packages/crawler/src/run.ts",
+      "accessCount": 1,
+      "lastAccessed": 1779274523293,
+      "type": "file"
+    },
+    {
+      "path": "packages/crawler/src/index.ts",
+      "accessCount": 1,
+      "lastAccessed": 1779274525281,
+      "type": "file"
+    },
+    {
+      "path": "packages/crawler/src/ig-fetch.ts",
+      "accessCount": 1,
+      "lastAccessed": 1779274525313,
+      "type": "file"
+    },
+    {
+      "path": "packages/crawler/src/dedup.ts",
+      "accessCount": 1,
+      "lastAccessed": 1779274533842,
+      "type": "file"
+    },
+    {
+      "path": "packages/crawler/src/seed-expand.ts",
+      "accessCount": 1,
+      "lastAccessed": 1779274534234,
+      "type": "file"
+    },
+    {
+      "path": "apps/web/components/ShowCard.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1779278803582,
+      "type": "file"
+    },
+    {
+      "path": "apps/web/components/FestivalCard.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1779278803624,
+      "type": "file"
+    },
+    {
+      "path": "apps/web/app/layout.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1779279047463,
+      "type": "file"
+    },
+    {
+      "path": "apps/web/app/loading.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1779279058470,
+      "type": "file"
+    },
+    {
+      "path": "crawler/fetch-festivallife.sh",
+      "accessCount": 1,
+      "lastAccessed": 1779279201074,
+      "type": "file"
+    },
+    {
+      "path": "apps/web/app/artists/[id]/page.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1779280485323,
+      "type": "file"
+    },
+    {
+      "path": "packages/db/prisma/migrations/20260520120000_fix_showartists_ab_order/migration.sql",
+      "accessCount": 1,
+      "lastAccessed": 1779281610731,
+      "type": "file"
+    },
+    {
+      "path": "crawler/analyze/festivallife-concert.py",
+      "accessCount": 1,
+      "lastAccessed": 1779282273328,
+      "type": "file"
+    },
+    {
+      "path": "crawler/analyze/festivallife-concert-from-tsv.py",
+      "accessCount": 1,
+      "lastAccessed": 1779286037176,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

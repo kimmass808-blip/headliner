@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "incremental": true,
+    "jsx": "preserve",
+    "baseUrl": ".",
+    "paths": {
+      "@mft/db": ["./packages/db/src/index.ts"],
+      "@mft/canonicalize": ["./packages/canonicalize/src/index.ts"],
+      "@mft/shared": ["./packages/shared/src/index.ts"],
+      "@mft/normalizer": ["./packages/normalizer/src/index.ts"],
+      "@mft/crawler": ["./packages/crawler/src/index.ts"],
+      "@mft/search": ["./packages/search/src/index.ts"]
+    }
+  }
+}

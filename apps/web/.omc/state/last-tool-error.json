@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"node -e \\\"\\nconst { loadEnvConfig } = require('next/dist/lib/load-env-config.js');\\nloadEnvConfig(process.cwd(), true);\\nconst hash = process.env.ADMIN_PASSWORD_HASH;\\nconsole.log('hash lo...",
+  "error": "Exit code 1\nnode:internal/modules/cjs/loader:1478\n  throw err;\n  ^\n\nError: Cannot find module 'next/dist/lib/load-env-config.js'\nRequire stack:\n- /Users/k5d/Desktop/claude/mft/apps/web/[eval]\n    at Module._resolveFilename (node:internal/modules/cjs/loader:1475:15)\n    at wrapResolveFilename (node:internal/modules/cjs/loader:1048:27)\n    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1072:10)\n    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1093:12)\n    at Mo...",
+  "timestamp": "2026-05-20T10:10:41.339Z",
+  "retry_count": 2
+}

@@ -1,0 +1,188 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Artist {
+  id            String   @id @default(cuid())
+  canonicalName String
+  canonicalKey  String   @unique
+  aliases       String[]
+  igHandle      String?  @unique
+  firstSeenAt   DateTime @default(now())
+  shows         Show[]   @relation("ShowArtists")
+}
+
+model Venue {
+  id           String     @id @default(cuid())
+  name         String
+  canonicalKey String     @unique
+  address      String?
+  region       String?
+  lat          Float?
+  lng          Float?
+  shows        Show[]
+  festivals    Festival[]
+}
+
+model VenueAlias {
+  id           String @id @default(cuid())
+  canonicalKey String
+  alias        String @unique
+  addedBy      String // 'operator' | 'auto'
+
+  @@index([canonicalKey])
+}
+
+model Festival {
+  id             String    @id @default(cuid())
+  name           String
+  canonicalKey   String    @unique
+  aliases        String[]
+  startDate      DateTime? @db.Date // v5: nullable (Model A 일관성 — partial 게시물 허용)
+  endDate        DateTime? @db.Date // v5: nullable
+  venueId        String?
+  venue          Venue?    @relation(fields: [venueId], references: [id])
+  locationText   String?
+  officialUrl    String?
+  ticketUrl      String?
+  igHandle       String?   @unique
+  posterImageUrl String?
+  description    String?
+  shows          Show[]
+  // v5: completeness 모델 일관 적용
+  completeness   Int       @default(0) // 0~2 (name·startDate · ≥1 Show)
+  needsReview    Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([startDate, endDate])
+  @@index([completeness])
+}
+
+// v5: 합병 이력 추적 (Critic MAJOR — AC-5b 보강).
+// v5.1 retention 정책: append-only. V1 scale (≤500 merges/year 추정)에서 cleanup 불필요.
+// row count >10k에 도달하면 V2에 archive·prune ADR 추가.
+model ShowMergeLog {
+  id       String   @id @default(cuid())
+  winnerId String // 살아남은 Show
+  loserData Json    // 패자 Show 스냅샷 (artist ids, fingerprint, dates 등)
+  mergedAt DateTime @default(now())
+  mergedBy String   // 'operator' | 'crawler-auto'
+  reason   String?  // 'admin-edit-promotion' | 'crawler-fingerprint-conflict' | etc
+
+  @@index([winnerId])
+  @@index([mergedAt])
+}
+
+model Show {
+  id                String    @id @default(cuid())
+  date              DateTime? @db.Date // v4: nullable (Model A)
+  startTime         String?
+  venueId           String? // v4: nullable
+  venue             Venue?    @relation(fields: [venueId], references: [id])
+  artists           Artist[]  @relation("ShowArtists") // v4: 0개여도 OK
+  title             String?
+  originalPostUrl   String    @unique // v4: 자연 키 (1 IG post → 1 Show)
+  ticketUrl         String?
+  imageUrl          String?
+  rawTextExcerpt    String?   @db.Text
+  festivalId        String?
+  festival          Festival? @relation(fields: [festivalId], references: [id])
+  stage             String?
+  setOrder          Int?
+  setlist           Setlist?
+  // v4: completeness 모델
+  completeness      Int       @default(0) // 0~3 (date·venue·artists≥1)
+  missingFields     String[]              // ['date'|'venue'|'artists'] 부분집합
+  needsReview       Boolean   @default(true) // admin 보완 큐 필터
+  fingerprint       String?   @unique // v4: nullable, completeness=3에 도달하면 생성
+  fingerprintInputs Json? // v4: nullable
+  duplicateOfShowId String?              // v5: 크롤러 dup 감지 시 winner 가리킴, admin 확인 대기
+  duplicateOf       Show?     @relation("DuplicateOf", fields: [duplicateOfShowId], references: [id]) // v5.1 self-ref FK
+  duplicates        Show[]    @relation("DuplicateOf")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([date])
+  @@index([festivalId])
+  @@index([completeness, date]) // v4: 검색 랭킹·관리자 큐 정렬용
+  @@index([duplicateOfShowId]) // v5.1: '중복 후보' 탭 쿼리
+}
+
+model Setlist {
+  id          String   @id @default(cuid())
+  showId      String   @unique
+  show        Show     @relation(fields: [showId], references: [id], onDelete: Cascade)
+  sourceNotes String?
+  songs       Song[]
+  updatedAt   DateTime @updatedAt
+}
+
+model Song {
+  id        String  @id @default(cuid())
+  setlistId String
+  setlist   Setlist @relation(fields: [setlistId], references: [id], onDelete: Cascade)
+  title     String
+  order     Int
+  isEncore  Boolean @default(false)
+  coverOf   String?
+
+  @@index([setlistId, order])
+}
+
+model InstagramPost {
+  canonicalUrl        String   @id
+  sourceAccount       String
+  postedAt            DateTime
+  rawText             String   @db.Text
+  imageUrls           String[]
+  postType            String   // 'single_show' | 'festival_lineup' | 'setlist' | 'unrelated'
+  extractedShowId     String?
+  extractedFestivalId String?
+  fetchedAt           DateTime @default(now())
+
+  @@index([sourceAccount, postedAt])
+}
+
+model SeedAccount {
+  igHandle         String    @id // canonical
+  kind             String    // 'festival' | 'artist' | 'venue'
+  status           String    // 'pending' | 'active' | 'dead' | 'rejected'
+  addedBy          String    // 'operator' | 'snowball'
+  sourceSeedHandle String?   // snowball provenance — references SeedAccount.igHandle
+  addedAt          DateTime  @default(now())
+  promotedAt       DateTime?
+  lastFetched      DateTime?
+  consecutiveFails Int       @default(0)
+  removedAt        DateTime?
+
+  @@index([status, lastFetched])
+}
+
+model CrawlRun {
+  id                String    @id @default(cuid())
+  startedAt         DateTime  @default(now())
+  finishedAt        DateTime?
+  status            String    // 'running' | 'success' | 'partial' | 'failed' | 'blocked_suspected'
+  accountsAttempted Int       @default(0)
+  accountsSucceeded Int       @default(0)
+  postsFetched      Int       @default(0)
+  postsClassified   Int       @default(0)
+  showsCreated      Int       @default(0)
+  showsUpdated      Int       @default(0)
+  festivalsCreated  Int       @default(0)
+  snowballAdded     Int       @default(0)
+  llmTokensIn       Int       @default(0)
+  llmTokensOut      Int       @default(0)
+  llmCostCents      Int       @default(0)
+  durationMs        Int?
+  errors            Json?
+
+  @@index([startedAt])
+}

@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"sleep 8 && curl -s -o /tmp/page-response.html -w \\\"HTTP %{http_code} | %{time_total}s\\\\n\\\" http://localhost:3000/ 2>&1 && echo \\\"---\\\" && head -c 500 /tmp/page-response.html 2>&1\",\"timeout...",
+  "error": "Exit code 143",
+  "timestamp": "2026-05-19T15:15:02.601Z",
+  "retry_count": 1
+}
