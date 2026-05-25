@@ -53,12 +53,12 @@ export default async function ShowDetailPage({
 
         <article className="mt-8">
           {show.imageUrl ? (
-            <div className="aspect-[3/4] max-h-[70vh] w-full overflow-hidden bg-neutral-100">
+            <div className="flex w-full justify-center bg-neutral-100">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={show.imageUrl}
                 alt=""
-                className="h-full w-full object-cover"
+                className="max-h-[70vh] w-auto object-contain"
               />
             </div>
           ) : null}
