@@ -16,6 +16,67 @@ model Artist {
   igHandle      String?  @unique
   firstSeenAt   DateTime @default(now())
   shows         Show[]   @relation("ShowArtists")
+
+  // External catalog enrichment (Spotify primary)
+  spotifyId        String?  @unique
+  spotifyImageUrl  String?  // raw Spotify CDN URL (for reference / re-download)
+  imageUrl         String?  // Supabase Storage URL (display)
+  genres           String[]
+  popularity       Int?     // 0-100 (Spotify popularity)
+  followerCount    Int?
+  bioText          String?  @db.Text
+  externalLinks    Json?    // { spotify, apple, youtube, bandcamp, official, ... }
+  lastEnrichedAt   DateTime?
+
+  tracks           Track[]
+  enrichCandidates SpotifyMatchCandidate[]
+
+  @@index([spotifyId])
+  @@index([popularity])
+}
+
+// Catalog tracks pulled from Spotify per artist (renamed from "Song" because
+// the Song model is already used for setlist entries — different concept).
+// Many-to-one Artist for now; collaborations would need a join table -- V2.
+model Track {
+  id              String    @id @default(cuid())
+  title           String
+  artistId        String
+  artist          Artist    @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  durationMs      Int?
+  releaseDate     DateTime? @db.Date
+  isrc            String?   @unique
+  spotifyId       String?   @unique
+  previewUrl      String?
+  albumName       String?
+  albumImageUrl   String?   // Supabase Storage URL (display)
+  albumImageRaw   String?   // raw Spotify CDN URL
+  popularity      Int?
+  trackNumber     Int?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([artistId])
+  @@index([releaseDate])
+}
+
+// Audit trail for the artist matching pass — store candidate hits per artist
+// so the operator can review/override which Spotify ID got chosen.
+model SpotifyMatchCandidate {
+  id          String   @id @default(cuid())
+  artistId    String
+  artist      Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  rank        Int      // 1 = top candidate
+  spotifyId   String
+  spotifyName String
+  popularity  Int?
+  genres      String[]
+  imageUrl    String?
+  score       Float    // matching confidence 0..1
+  reason      String   // "exact_korean" | "alias_match" | "fuzzy" | "manual" ...
+  createdAt   DateTime @default(now())
+
+  @@index([artistId, rank])
 }
 
 model Venue {
