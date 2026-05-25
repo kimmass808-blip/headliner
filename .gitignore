@@ -42,6 +42,17 @@ crawler/dumps/
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 
+# 사적 메모 (프로젝트 CLAUDE.md 정책에 따라 비공개)
+_thinking/
+
+# OMC 자동 생성 상태/세션 메타 (handoffs/plans/specs는 유지)
+.omc/state/
+.omc/sessions/
+.omc/ingest-log/
+.omc/ingest-watchlist.json
+.omc/image-migration/
+.omc/skills/
+
 # Turbo (V2 예약)
 .turbo/
 
