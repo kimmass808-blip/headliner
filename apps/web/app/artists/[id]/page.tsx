@@ -73,27 +73,45 @@ export default async function ArtistDetailPage({
         </Link>
 
         <article className="mt-8">
-          <p className="text-[11px] uppercase tracking-widest text-accent">
-            Artist
-          </p>
-          <h2 className="mt-3 text-4xl font-bold leading-tight tracking-tightest text-neutral-900 md:text-6xl">
-            {artist.canonicalName}
-          </h2>
-          {artist.aliases.length > 0 ? (
-            <p className="mt-3 text-sm text-neutral-500">
-              {artist.aliases.join(' · ')}
-            </p>
-          ) : null}
-          {artist.igHandle ? (
-            <a
-              href={`https://www.instagram.com/${artist.igHandle}/`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-4 inline-block text-sm text-accent hover:text-accent-ink"
-            >
-              @{artist.igHandle} →
-            </a>
-          ) : null}
+          <div className="flex flex-col items-start gap-8 sm:flex-row sm:items-center">
+            <div className="aspect-square h-32 w-32 shrink-0 overflow-hidden rounded-full bg-neutral-100 sm:h-40 sm:w-40">
+              {artist.imageUrl || artist.spotifyImageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={artist.imageUrl ?? artist.spotifyImageUrl ?? ''}
+                  alt={artist.canonicalName}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-[10px] uppercase tracking-widest text-neutral-400">
+                  No photo
+                </div>
+              )}
+            </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-widest text-accent">
+                Artist
+              </p>
+              <h2 className="mt-2 text-4xl font-bold leading-tight tracking-tightest text-neutral-900 md:text-6xl">
+                {artist.canonicalName}
+              </h2>
+              {artist.aliases.length > 0 ? (
+                <p className="mt-3 text-sm text-neutral-500">
+                  {artist.aliases.join(' · ')}
+                </p>
+              ) : null}
+              {artist.igHandle ? (
+                <a
+                  href={`https://www.instagram.com/${artist.igHandle}/`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-4 inline-block text-sm text-accent hover:text-accent-ink"
+                >
+                  @{artist.igHandle} →
+                </a>
+              ) : null}
+            </div>
+          </div>
 
           <section className="mt-16 border-t border-neutral-200 pt-10">
             <p className="text-[11px] uppercase tracking-widest text-neutral-400">
