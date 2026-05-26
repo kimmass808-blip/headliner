@@ -5,11 +5,9 @@
 import Link from 'next/link';
 import { defaultSearchEngine } from '@mft/search';
 import { prisma } from '@mft/db';
-import { SearchForm } from '../components/SearchForm';
 import { ShowCard } from '../components/ShowCard';
 import { FestivalCard } from '../components/FestivalCard';
 import { ArtistResultCard } from '../components/ArtistResultCard';
-import { BrandHeader } from '../components/BrandHeader';
 import { HomeHeader } from '../components/home/Header';
 import { HomeHero } from '../components/home/Hero';
 import { HomeSearchBar } from '../components/home/SearchBar';
@@ -237,16 +235,16 @@ export default async function HomePage({
   const posterCards = cardResults.filter((c) => c.kind !== 'artist');
 
   return (
-    <>
-      <BrandHeader />
-      <main className="container mx-auto max-w-5xl px-6 py-12">
-        <SearchForm initialQuery={trimmed} />
-        <p className="mt-4 text-[11px] uppercase tracking-widest text-neutral-400">
+    <div className="min-h-screen bg-ink-900 font-sans text-paper">
+      <HomeHeader />
+      <main className="mx-auto max-w-[1400px] px-6 pb-24 pt-10 sm:px-10 sm:pt-14">
+        <HomeSearchBar initialQuery={trimmed} />
+        <p className="mt-4 text-center text-[11px] uppercase tracking-[0.3em] text-paper/45">
           {contextLabel}
         </p>
 
         {artistCards.length > 0 ? (
-          <section className="mt-8 border-t border-neutral-200">
+          <section className="mt-12">
             {artistCards.map((c) => (
               <ArtistResultCard key={c.key} artist={c.data} />
             ))}
@@ -254,7 +252,7 @@ export default async function HomePage({
         ) : null}
 
         {posterCards.length > 0 ? (
-          <section className="mt-10 grid grid-cols-2 gap-x-5 gap-y-10 md:grid-cols-3 lg:grid-cols-4">
+          <section className="mt-12 grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-4">
             {posterCards.map((c) => {
               if (c.kind === 'show') {
                 return <ShowCard key={c.key} show={c.data} />;
@@ -265,11 +263,11 @@ export default async function HomePage({
         ) : null}
 
         {cardResults.length === 0 ? (
-          <p className="py-20 text-center text-neutral-400">
+          <p className="py-20 text-center text-sm text-paper/40">
             검색 결과가 없습니다.
           </p>
         ) : null}
       </main>
-    </>
+    </div>
   );
 }
