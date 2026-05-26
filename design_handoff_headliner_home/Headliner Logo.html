@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>HEADLINER — Header Wordmark Studies</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;600;800;900&family=Bebas+Neue&family=Anton&family=Space+Grotesk:wght@500;700&family=Big+Shoulders+Display:wght@700;900&family=Oswald:wght@600;700&family=Manrope:wght@700;800&family=Familjen+Grotesk:wght@600;700&family=JetBrains+Mono:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#ffffff;
+    --ink:#0a0a0a;
+    --muted:#9a9a9a;
+    --line:#e6e6e6;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--paper);color:var(--ink);font-family:"Archivo",ui-sans-serif,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  body{padding:48px 56px 80px}
+
+  .topbar{
+    display:flex;justify-content:space-between;align-items:center;
+    font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--ink);
+    padding-bottom:14px;border-bottom:1px solid var(--ink);
+  }
+  .topbar .dot{width:5px;height:5px;background:var(--ink);border-radius:50%;display:inline-block;margin:0 10px;vertical-align:middle}
+
+  .intro{
+    display:flex;align-items:flex-end;justify-content:space-between;margin:36px 0 28px;
+  }
+  .intro h2{
+    font-family:"Archivo",sans-serif;font-weight:800;font-size:34px;letter-spacing:-.02em;
+  }
+  .intro p{
+    font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.25em;
+    text-transform:uppercase;color:var(--muted);max-width:46ch;text-align:right;line-height:1.6;
+  }
+
+  .stack{display:flex;flex-direction:column;gap:0;border-top:1px solid var(--line)}
+
+  /* each row = a website header mockup */
+  .row{
+    display:grid;grid-template-columns:120px 1fr 220px;align-items:center;
+    border-bottom:1px solid var(--line);
+    padding:36px 8px;gap:24px;
+  }
+  .row .num{
+    font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.2em;
+    color:var(--muted);text-transform:uppercase;
+  }
+  .row .meta{
+    font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.22em;
+    color:var(--muted);text-transform:uppercase;text-align:right;line-height:1.6;
+  }
+  .row .meta b{display:block;color:var(--ink);font-weight:600;margin-bottom:4px;letter-spacing:.18em}
+  .mark{display:flex;align-items:center;gap:18px;min-width:0}
+
+  /* dark row */
+  .row.dark{background:#0a0a0a;color:#fff;border-color:#0a0a0a;margin:0 -8px;padding-left:16px;padding-right:16px}
+  .row.dark .num,.row.dark .meta{color:#a8a8a8}
+  .row.dark .meta b{color:#fff}
+
+  /* ============ THE WORDMARKS ============ */
+
+  /* 01 Archivo Black — Musinsa-like baseline */
+  .w-archivo{
+    font-family:"Archivo Black",sans-serif;font-weight:900;
+    font-size:64px;letter-spacing:.01em;line-height:1;
+  }
+
+  /* 02 Anton — tall condensed */
+  .w-anton{
+    font-family:"Anton",sans-serif;font-weight:400;
+    font-size:80px;letter-spacing:.04em;line-height:.9;
+    text-transform:uppercase;
+  }
+
+  /* 03 Space Grotesk — modern neo-grotesque */
+  .w-spacegrotesk{
+    font-family:"Space Grotesk",sans-serif;font-weight:700;
+    font-size:56px;letter-spacing:-.02em;line-height:1;
+  }
+
+  /* 04 Bebas Neue — slim, very condensed */
+  .w-bebas{
+    font-family:"Bebas Neue",sans-serif;font-weight:400;
+    font-size:80px;letter-spacing:.06em;line-height:.9;
+  }
+
+  /* 05 Big Shoulders — industrial display */
+  .w-bigshoulders{
+    font-family:"Big Shoulders Display",sans-serif;font-weight:900;
+    font-size:72px;letter-spacing:.005em;line-height:.95;
+  }
+
+  /* 06 Manrope — soft geometric */
+  .w-manrope{
+    font-family:"Manrope",sans-serif;font-weight:800;
+    font-size:56px;letter-spacing:-.025em;line-height:1;
+  }
+
+  /* 07 Lowercase wide — friendly editorial sans */
+  .w-lowercase{
+    font-family:"Familjen Grotesk",sans-serif;font-weight:700;
+    font-size:60px;letter-spacing:-.025em;line-height:1;text-transform:none;
+  }
+
+  /* 08 Mono — code-style header */
+  .w-mono{
+    font-family:"JetBrains Mono",monospace;font-weight:800;
+    font-size:48px;letter-spacing:-.04em;line-height:1;
+  }
+  .w-mono .brk{color:var(--muted);font-weight:600}
+
+  /* 09 Outline / stroke */
+  .w-outline{
+    font-family:"Archivo",sans-serif;font-weight:900;
+    font-size:64px;letter-spacing:.01em;line-height:1;
+    color:transparent;-webkit-text-stroke:1.5px currentColor;
+  }
+
+  /* 10 With dot accent */
+  .w-dot{
+    font-family:"Archivo",sans-serif;font-weight:900;
+    font-size:60px;letter-spacing:-.015em;line-height:1;
+  }
+  .w-dot .dotmark{display:inline-block;width:14px;height:14px;background:#ff4d2e;border-radius:50%;margin-left:6px;vertical-align:.06em}
+
+  /* small nav placeholders to sell the "header" context */
+  .nav{
+    display:flex;gap:22px;font-family:"Archivo",sans-serif;font-weight:600;
+    font-size:13px;letter-spacing:.02em;color:#666;
+  }
+  .nav .pill{
+    display:inline-flex;align-items:center;justify-content:center;
+    border:1px solid currentColor;border-radius:999px;
+    padding:6px 12px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#333;
+  }
+  .row.dark .nav{color:#bbb}
+  .row.dark .nav .pill{color:#fff;border-color:#fff}
+
+  /* divider micro chrome on the right (cart / search etc) */
+  .chrome{
+    display:flex;align-items:center;gap:14px;justify-self:end;
+    font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#888;
+  }
+
+  .footer{
+    margin-top:32px;display:flex;justify-content:space-between;
+    font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.25em;
+    text-transform:uppercase;color:var(--muted);
+    border-top:1px solid var(--ink);padding-top:14px;
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div>HEADLINER<span class="dot"></span>Website Header / Wordmark Studies</div>
+    <div>10 Options <span class="dot"></span>For Top-of-Page Logo</div>
+    <div>Sans-serif · Mono · Display</div>
+  </div>
+
+  <div class="intro">
+    <h2>Ten wordmarks for the site header.</h2>
+    <p>Each row mocks the logo in place at the top of a page — with sample nav and chrome — so weight, width and color can be compared in context.</p>
+  </div>
+
+  <div class="stack">
+
+    <!-- 01 -->
+    <div class="row">
+      <div class="num">01</div>
+      <div class="mark">
+        <div class="w-archivo">HEADLINER</div>
+      </div>
+      <div class="chrome"><span>Search</span><span>Cart (0)</span><span>EN</span></div>
+    </div>
+
+    <!-- 02 -->
+    <div class="row">
+      <div class="num">02</div>
+      <div class="mark">
+        <div class="w-anton">HEADLINER</div>
+      </div>
+      <div class="chrome"><span>Issues</span><span>Shop</span><span>Subscribe</span></div>
+    </div>
+
+    <!-- 03 -->
+    <div class="row">
+      <div class="num">03</div>
+      <div class="mark">
+        <div class="w-spacegrotesk">Headliner</div>
+      </div>
+      <div class="chrome"><span>Stories</span><span>Studio</span><span>↗</span></div>
+    </div>
+
+    <!-- 04 -->
+    <div class="row dark">
+      <div class="num">04</div>
+      <div class="mark">
+        <div class="w-bebas">HEADLINER</div>
+      </div>
+      <div class="chrome"><span>Latest</span><span>Archive</span><span>Sign In</span></div>
+    </div>
+
+    <!-- 05 -->
+    <div class="row">
+      <div class="num">05</div>
+      <div class="mark">
+        <div class="w-bigshoulders">HEADLINER</div>
+      </div>
+      <div class="chrome"><span>Watch</span><span>Read</span><span>Listen</span></div>
+    </div>
+
+    <!-- 06 -->
+    <div class="row">
+      <div class="num">06</div>
+      <div class="mark">
+        <div class="w-manrope">Headliner</div>
+      </div>
+      <div class="chrome"><span>Work</span><span>About</span><span>Contact</span></div>
+    </div>
+
+    <!-- 07 -->
+    <div class="row">
+      <div class="num">07</div>
+      <div class="mark">
+        <div class="w-lowercase">headliner</div>
+      </div>
+      <div class="chrome"><span>Index</span><span>Notes</span><span>Shop</span></div>
+    </div>
+
+    <!-- 08 -->
+    <div class="row dark">
+      <div class="num">08</div>
+      <div class="mark">
+        <div class="w-mono"><span class="brk">/</span>headliner</div>
+      </div>
+      <div class="chrome"><span>Docs</span><span>Log</span><span>Console</span></div>
+    </div>
+
+    <!-- 09 -->
+    <div class="row">
+      <div class="num">09</div>
+      <div class="mark">
+        <div class="w-outline">HEADLINER</div>
+      </div>
+      <div class="chrome"><span>Menu</span><span>Search</span><span>Account</span></div>
+    </div>
+
+    <!-- 10 -->
+    <div class="row">
+      <div class="num">10</div>
+      <div class="mark">
+        <div class="w-dot">HEADLINER<span class="dotmark"></span></div>
+      </div>
+      <div class="chrome"><span>Now</span><span>Soon</span><span>Past</span></div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <span>© Headliner</span>
+    <span>Header height target: 72–96px · safe area 24px</span>
+    <span>Try in dark + light contexts</span>
+  </div>
+
+</body>
+</html>

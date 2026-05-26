@@ -1,4 +1,5 @@
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css');
+@import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -18,5 +19,44 @@
   /* Headliner 헤드라인 — 한국어/영문 모두 광폭 */
   h1, h2, h3 {
     letter-spacing: -0.02em;
+  }
+}
+
+@layer utilities {
+  /* DPR-survive hairline (다크 홈 시안 기준) */
+  .hairline {
+    box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+  }
+  .hairline-t {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  /* Poster card hover */
+  .poster-card .poster-img {
+    transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1), filter 0.4s ease;
+  }
+  .poster-card:hover .poster-img {
+    transform: scale(1.03);
+    filter: brightness(1.05);
+  }
+
+  /* Search input caret + placeholder accent */
+  input.search-input {
+    caret-color: #d4ff4d;
+  }
+  input.search-input::placeholder {
+    color: #5a5a5a;
+  }
+
+  /* 헤드라인 톤 (홈 히어로 / 디스플레이 영문) */
+  .hero-kr {
+    font-weight: 800;
+    letter-spacing: -0.035em;
+  }
+  .logo-headliner {
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-weight: 900;
+    letter-spacing: 0.005em;
+    line-height: 1;
   }
 }

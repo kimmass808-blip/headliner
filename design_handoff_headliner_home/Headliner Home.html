@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Headliner — 국내 인디 공연·페스티벌</title>
+
+<!-- Pretendard -->
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+<!-- Big Shoulders Display for the HEADLINER logo (matches Option 05) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&display=swap" rel="stylesheet">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink: {
+            900: '#0a0a0a',
+            850: '#101010',
+            800: '#141414',
+            700: '#1c1c1c',
+            600: '#262626',
+            500: '#3a3a3a',
+          },
+          paper: '#fafafa',
+          muted: '#8a8a8a',
+          dim:   '#5a5a5a',
+          lime:  'var(--accent, #d4ff4d)', // accent — driven by Tweaks
+        },
+        fontFamily: {
+          sans: ['"Pretendard Variable"', 'Pretendard', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+          display: ['"Big Shoulders Display"', '"Pretendard Variable"', 'sans-serif'],
+        },
+      }
+    }
+  }
+</script>
+
+<style>
+  html, body { background:#0a0a0a; }
+  body { font-family:'Pretendard Variable', Pretendard, ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing:antialiased; }
+  /* hairline that survives DPR */
+  .hairline { box-shadow: inset 0 -1px 0 rgba(255,255,255,0.06); }
+  .hairline-t { box-shadow: inset 0 1px 0 rgba(255,255,255,0.06); }
+
+  /* poster hover */
+  .poster-card .poster-img { transition: transform .6s cubic-bezier(.2,.7,.2,1), filter .4s ease; }
+  .poster-card:hover .poster-img { transform: scale(1.03); filter: brightness(1.05); }
+  .poster-card .poster-meta { transition: color .25s ease; }
+  [data-hover-accent="1"] .poster-card:hover h3 { color: var(--accent, #d4ff4d); }
+
+  /* search caret accent */
+  input.search-input { caret-color:#d4ff4d; }
+  input.search-input::placeholder { color:#5a5a5a; }
+
+  /* marquee strip */
+  @keyframes marqueeX { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+  .marquee-track { animation: marqueeX 40s linear infinite; }
+
+  /* logo type tweak */
+  .logo-headliner {
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-weight: 900;
+    letter-spacing: 0.005em;
+    line-height: 1;
+  }
+
+  /* large hero korean / latin headline */
+  .hero-kr { font-weight: 800; letter-spacing: -0.035em; }
+  .hero-en { font-weight: 600; letter-spacing: -0.02em; font-style: italic; }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+</head>
+<body class="bg-ink-900 text-paper">
+
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState } = React;
+
+// ---- mock data ---------------------------------------------------------------
+const SHOWS = [
+  {
+    id: 1,
+    type: 'SHOW',
+    artist: '실리카겔',
+    title: 'LIQUID SUNSHINE TOUR',
+    venue: '무신사 개러지',
+    city: '서울',
+    date: '2026.06.14',
+    day: 'SAT',
+    price: '₩66,000',
+    img: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=900&q=80&auto=format&fit=crop',
+  },
+  {
+    id: 2,
+    type: 'SHOW',
+    artist: '새소년',
+    title: '비적응의 밤',
+    venue: '롤링홀',
+    city: '서울',
+    date: '2026.06.21',
+    day: 'SAT',
+    price: '₩55,000',
+    img: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=900&q=80&auto=format&fit=crop',
+  },
+  {
+    id: 3,
+    type: 'SHOW',
+    artist: 'hyukoh',
+    title: 'PANDA BEAR INVITATION',
+    venue: '예스24 라이브홀',
+    city: '서울',
+    date: '2026.07.03',
+    day: 'FRI',
+    price: '₩77,000',
+    img: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=900&q=80&auto=format&fit=crop',
+  },
+  {
+    id: 4,
+    type: 'FESTIVAL',
+    artist: '인천 펜타포트 락 페스티벌',
+    title: '2026 PENTAPORT',
+    venue: '송도달빛축제공원',
+    city: '인천',
+    date: '2026.08.08',
+    day: '3 DAYS',
+    price: '₩220,000',
+    img: 'https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec?w=900&q=80&auto=format&fit=crop',
+  },
+  {
+    id: 5,
+    type: 'SHOW',
+    artist: '검정치마',
+    title: 'TEAM BABY 10주년',
+    venue: 'KINTEX 제2전시장',
+    city: '고양',
+    date: '2026.07.19',
+    day: 'SAT',
+    price: '₩88,000',
+    img: 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=900&q=80&auto=format&fit=crop',
+  },
+  {
+    id: 6,
+    type: 'SHOW',
+    artist: '잠비나이',
+    title: 'ONDA — 새 앨범 발매 기념',
+    venue: '벨로주 홍대',
+    city: '서울',
+    date: '2026.06.28',
+    day: 'SAT',
+    price: '₩44,000',
+    img: 'https://images.unsplash.com/photo-1574391884720-bbc3740c59d1?w=900&q=80&auto=format&fit=crop',
+  },
+  {
+    id: 7,
+    type: 'SHOW',
+    artist: '데이브레이크',
+    title: '여름 라이브 — 그 여름의 끝',
+    venue: '웨스트브릿지 라이브홀',
+    city: '서울',
+    date: '2026.08.02',
+    day: 'SUN',
+    price: '₩59,000',
+    img: 'https://images.unsplash.com/photo-1506157786151-b8491531f063?w=900&q=80&auto=format&fit=crop',
+  },
+  {
+    id: 8,
+    type: 'FESTIVAL',
+    artist: '잔다리 페스타',
+    title: 'ZANDARI FESTA 2026',
+    venue: '홍대 일대 27개 공연장',
+    city: '서울',
+    date: '2026.09.25',
+    day: '3 DAYS',
+    price: '₩99,000',
+    img: 'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=900&q=80&auto=format&fit=crop',
+  },
+];
+
+const FILTERS = ['전체', '이번 주', '이번 달', '서울', '부산·대구', '페스티벌'];
+
+// ---- atomic bits -------------------------------------------------------------
+function Logo() {
+  return (
+    <a href="#" className="logo-headliner text-paper text-[28px] sm:text-[32px] tracking-tight select-none">
+      HEADLINER
+    </a>
+  );
+}
+
+function SearchIcon({className=''}) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="7.5"></circle>
+      <path d="M20 20l-4-4"></path>
+    </svg>
+  );
+}
+
+function ArrowIcon({className=''}) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 12h14"></path>
+      <path d="M13 5l7 7-7 7"></path>
+    </svg>
+  );
+}
+
+function Header() {
+  return (
+    <header className="w-full hairline">
+      <div className="max-w-[1400px] mx-auto px-6 sm:px-10 h-[72px] flex items-center justify-between">
+        <Logo />
+        <nav className="hidden md:flex items-center gap-8 text-[13px] tracking-[0.02em] text-paper/70">
+          <a href="#" className="hover:text-paper">공연</a>
+          <a href="#" className="hover:text-paper">페스티벌</a>
+          <a href="#" className="hover:text-paper">아티스트</a>
+          <a href="#" className="hover:text-paper">아카이브</a>
+        </nav>
+        <div className="flex items-center gap-3">
+          <button aria-label="search" className="w-9 h-9 rounded-full border border-white/10 flex items-center justify-center text-paper/80 hover:border-white/30 hover:text-paper transition">
+            <SearchIcon className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function Marquee() {
+  const items = [
+    '실리카겔 단독공연 티켓 오픈',
+    '펜타포트 라인업 1차 공개',
+    '새소년 새 EP 발매',
+    'hyukoh 아시아투어 합류',
+    '잔다리 페스타 얼리버드',
+    '검정치마 TEAM BABY 10주년',
+  ];
+  const strip = [...items, ...items];
+  return (
+    <div className="w-full overflow-hidden hairline-t hairline bg-ink-850/70">
+      <div className="flex marquee-track whitespace-nowrap py-2.5">
+        {strip.map((t, i) => (
+          <span key={i} className="flex items-center gap-4 px-6 text-[11px] tracking-[0.22em] uppercase text-paper/55">
+            <span className="w-1 h-1 rounded-full bg-lime inline-block"></span>
+            {t}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Hero({ query, setQuery, heroSize, mono }) {
+  // hero headline sizes — intentionally smaller now that the image carries the visual weight
+  const headlineSize =
+    heroSize.indexOf('64px') > -1
+      ? 'text-[8vw] sm:text-[42px] lg:text-[56px]'
+      : heroSize.indexOf('76px') > -1
+      ? 'text-[9vw] sm:text-[52px] lg:text-[68px]'
+      : 'text-[10vw] sm:text-[60px] lg:text-[80px]';
+
+  return (
+    <section className="max-w-[1400px] mx-auto px-6 sm:px-10 pt-10 sm:pt-14 pb-12">
+
+      {/* HERO IMAGE BLOCK ----------------------------------------------------- */}
+      <div className="relative overflow-hidden rounded-lg bg-ink-800 aspect-[16/10] sm:aspect-[16/9] lg:aspect-[21/9] min-h-[420px] max-h-[720px]">
+        <img
+          src="assets/hero-stage.jpg"
+          alt="Live indie stage"
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ objectPosition: '50% 38%' }}
+        />
+        {/* warm-to-dark scrim — readable text in bottom-left */}
+        <div className="absolute inset-0 bg-gradient-to-tr from-black/85 via-black/40 to-black/10 pointer-events-none"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent pointer-events-none"></div>
+
+        {/* bottom-left headline */}
+        <div className="absolute left-5 sm:left-7 lg:left-10 right-5 bottom-6 sm:bottom-8 lg:bottom-10">
+          <h1 className={`hero-kr text-paper ${headlineSize} leading-[1.0]`}>
+            당신의 심장이
+          </h1>
+          <h1 className={`hero-kr text-paper ${headlineSize} leading-[1.0] mt-0.5`}>
+            뛰는 순간
+          </h1>
+        </div>
+      </div>
+
+      {/* SEARCH (below the hero image) --------------------------------------- */}
+      <div className="mt-10 sm:mt-12 max-w-3xl mx-auto">
+        <div className="group relative flex items-center gap-4 border border-white/10 hover:border-white/25 focus-within:border-lime focus-within:bg-ink-800 transition rounded-full bg-ink-850 px-5 sm:px-6 h-[64px] sm:h-[72px]">
+          <SearchIcon className="w-5 h-5 text-paper/50 group-focus-within:text-lime transition shrink-0" />
+          <input
+            type="text"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="아티스트, 공연, 페스티벌, 장소를 검색하세요"
+            className="search-input flex-1 bg-transparent outline-none text-paper text-[15px] sm:text-[17px] placeholder:text-dim"
+          />
+          <button className="hidden sm:inline-flex items-center gap-2 bg-lime text-ink-900 font-semibold text-[13px] tracking-[0.05em] uppercase px-5 h-[44px] rounded-full hover:bg-lime/90 transition">
+            검색
+            <ArrowIcon className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* filter chips */}
+        <div className="mt-5 flex flex-wrap gap-2 justify-center">
+          {FILTERS.map((f, i) => (
+            <button
+              key={f}
+              className={
+                'px-3.5 h-8 rounded-full text-[12px] tracking-[0.02em] border transition ' +
+                (i === 0
+                  ? 'bg-paper text-ink-900 border-paper'
+                  : 'text-paper/70 border-white/12 hover:border-white/30 hover:text-paper')
+              }
+            >
+              {f}
+            </button>
+          ))}
+          <div className="px-3.5 h-8 rounded-full border border-dashed border-white/10 text-[12px] text-dim flex items-center">
+            + 직접 필터
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PosterCard({ s, mono }) {
+  const typeLabel = s.type === 'FESTIVAL' ? 'FESTIVAL' : 'SHOW';
+  return (
+    <a href="#" className="poster-card group block">
+      {/* poster 3:4 */}
+      <div className="relative overflow-hidden rounded-md bg-ink-700 aspect-[3/4]">
+        <img
+          src={s.img}
+          alt={s.artist}
+          className="poster-img absolute inset-0 w-full h-full object-cover opacity-90 group-hover:opacity-100"
+          loading="lazy"
+        />
+        {/* darkening gradient at bottom for legibility */}
+        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none"></div>
+
+        {/* top meta */}
+        <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
+          <span className={
+            'text-[10px] tracking-[0.22em] uppercase px-2 py-1 rounded-sm ' +
+            (s.type === 'FESTIVAL'
+              ? (mono
+                  ? 'border border-paper/80 text-paper bg-black/30 backdrop-blur-sm font-semibold'
+                  : 'bg-lime text-ink-900 font-semibold')
+              : 'bg-white/10 text-paper/90 backdrop-blur-sm')
+          }>
+            {typeLabel}
+          </span>
+          <span className="text-[10px] tracking-[0.22em] uppercase text-paper/80 bg-black/40 backdrop-blur-sm px-2 py-1 rounded-sm">
+            {s.day}
+          </span>
+        </div>
+
+        {/* bottom date */}
+        <div className="absolute left-3 right-3 bottom-3 flex items-end justify-between">
+          <div className="logo-headliner text-paper text-[28px] sm:text-[30px] leading-none">
+            {s.date.split('.')[1]}<span className="text-paper/60">/</span>{s.date.split('.')[2]}
+          </div>
+        </div>
+      </div>
+
+      {/* meta below poster */}
+      <div className="poster-meta mt-4 pr-2">
+        <h3 className="text-paper text-[17px] font-semibold tracking-[-0.01em] leading-tight">
+          {s.artist}
+        </h3>
+        <p className="mt-1 text-paper/55 text-[13px] leading-tight line-clamp-1">
+          {s.title}
+        </p>
+        <div className="mt-3 flex items-center gap-2 text-[11px] tracking-[0.08em] text-paper/45">
+          <span>{s.city}</span>
+          <span className="text-dim">·</span>
+          <span className="truncate">{s.venue}</span>
+        </div>
+      </div>
+    </a>
+  );
+}
+
+function UpcomingSection({ hoverAccentTitle, mono }) {
+  return (
+    <section className="max-w-[1400px] mx-auto px-6 sm:px-10 pt-6 pb-24" data-hover-accent={hoverAccentTitle ? '1' : '0'}>
+      {/* section heading */}
+      <div className="flex items-end justify-between mb-10 hairline pb-6">
+        <div>
+          <div className="text-[11px] tracking-[0.3em] uppercase text-paper/45 mb-3">
+            UPCOMING / 2026
+          </div>
+          <h2 className="text-paper text-[32px] sm:text-[40px] font-bold tracking-[-0.025em] leading-tight">
+            다가오는 공연
+          </h2>
+        </div>
+        <a href="#" className="hidden sm:inline-flex items-center gap-2 text-[12px] tracking-[0.18em] uppercase text-paper/70 hover:text-lime transition group">
+          전체 보기
+          <ArrowIcon className="w-4 h-4 group-hover:translate-x-1 transition" />
+        </a>
+      </div>
+
+      {/* grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-12">
+        {SHOWS.map(s => <PosterCard key={s.id} s={s} mono={mono} />)}
+      </div>
+    </section>
+  );
+}
+
+// ---- tweakable defaults ------------------------------------------------------
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accent": "#d4ff4d",
+  "heroScale": "S",
+  "hoverAccentTitle": true,
+  "monochrome": true
+}/*EDITMODE-END*/;
+
+const ACCENT_OPTIONS = [
+  '#d4ff4d', // lime
+  '#ff3d8a', // hot pink
+  '#4dd6ff', // electric cyan
+  '#ff7a3d', // sunset orange
+  '#f5e96b', // cream
+];
+
+function App() {
+  const [query, setQuery] = useState('');
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  // hero font-size scales
+  const heroSize = t.heroScale === 'S'
+    ? 'text-[10vw] sm:text-[64px] lg:text-[88px]'
+    : t.heroScale === 'M'
+    ? 'text-[12vw] sm:text-[76px] lg:text-[104px]'
+    : 'text-[14vw] sm:text-[88px] lg:text-[120px]';
+
+  const effectiveAccent = t.monochrome ? '#fafafa' : t.accent;
+
+  return (
+    <div
+      className="min-h-screen bg-ink-900 text-paper"
+      style={{ '--accent': effectiveAccent }}
+      data-mono={t.monochrome ? '1' : '0'}
+    >
+      <Header />
+      <main>
+        <Hero query={query} setQuery={setQuery} heroSize={heroSize} mono={t.monochrome} />
+        <UpcomingSection hoverAccentTitle={t.hoverAccentTitle} mono={t.monochrome} />
+      </main>
+
+      <TweaksPanel>
+        <TweakSection label="Accent" />
+        <TweakToggle
+          label="Monochrome (no accent)"
+          value={t.monochrome}
+          onChange={(v) => setTweak('monochrome', v)}
+        />
+        <TweakColor
+          label="Accent color"
+          value={t.accent}
+          options={ACCENT_OPTIONS}
+          onChange={(v) => setTweak({ accent: v, monochrome: false })}
+        />
+
+        <TweakSection label="Layout" />
+        <TweakRadio
+          label="Hero scale"
+          value={t.heroScale}
+          options={['S', 'M', 'L']}
+          onChange={(v) => setTweak('heroScale', v)}
+        />
+        <TweakToggle
+          label="Hover: title → accent"
+          value={t.hoverAccentTitle}
+          onChange={(v) => setTweak('hoverAccentTitle', v)}
+        />
+      </TweaksPanel>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+
+</body>
+</html>

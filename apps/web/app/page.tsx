@@ -10,6 +10,15 @@ import { ShowCard } from '../components/ShowCard';
 import { FestivalCard } from '../components/FestivalCard';
 import { ArtistResultCard } from '../components/ArtistResultCard';
 import { BrandHeader } from '../components/BrandHeader';
+import { HomeHeader } from '../components/home/Header';
+import { HomeHero } from '../components/home/Hero';
+import { HomeSearchBar } from '../components/home/SearchBar';
+import { HomeFilterChips } from '../components/home/FilterChips';
+import {
+  UpcomingSection,
+  type UpcomingItem,
+} from '../components/home/UpcomingSection';
+import { formatWeekdayShort } from '../components/home/PosterCard';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,64 +78,80 @@ export default async function HomePage({
           missingFields: true,
           stage: true,
           festivalId: true,
-          venue: { select: { id: true, name: true } },
+          venue: { select: { id: true, name: true, region: true } },
           artists: { select: { id: true, canonicalName: true } },
           festival: { select: { id: true, name: true } },
         },
       }),
     ]);
 
-    // 페스티벌 + 단독공연을 날짜순으로 인터리브 후 상위 8건만 표시
-    type UpcomingCard =
-      | { kind: 'festival'; key: string; sortDate: Date; data: (typeof upcomingFestivals)[number] }
-      | { kind: 'show'; key: string; sortDate: Date; data: (typeof upcomingShows)[number] };
+    // 페스티벌 + 단독공연을 PosterCard 형식으로 통일 → 날짜순 인터리브 → 상위 8건
+    const festivalItems: UpcomingItem[] = upcomingFestivals
+      .filter((f) => f.startDate)
+      .map((f) => {
+        const start = new Date(f.startDate!);
+        const end = f.endDate ? new Date(f.endDate) : null;
+        const isMultiDay = end && end.getTime() !== start.getTime();
+        const dayLabel = isMultiDay
+          ? (() => {
+              const diff = Math.round((end!.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+              return `${diff} DAYS`;
+            })()
+          : formatWeekdayShort(start);
+        return {
+          key: `f:${f.id}`,
+          href: `/festivals/${f.id}`,
+          type: 'FESTIVAL' as const,
+          imageUrl: f.posterImageUrl,
+          primaryName: f.name,
+          secondaryTitle: null,
+          city: null,
+          venueName: f.locationText ?? null,
+          date: start,
+          dayLabel,
+        };
+      });
 
-    const cards: UpcomingCard[] = [
-      ...upcomingFestivals
-        .filter((f) => f.startDate)
-        .map<UpcomingCard>((f) => ({ kind: 'festival', key: f.id, sortDate: new Date(f.startDate!), data: f })),
-      ...upcomingShows
-        .filter((s) => s.date)
-        .map<UpcomingCard>((s) => ({ kind: 'show', key: s.id, sortDate: new Date(s.date!), data: s })),
-    ]
-      .sort((a, b) => a.sortDate.getTime() - b.sortDate.getTime())
+    const showItems: UpcomingItem[] = upcomingShows
+      .filter((s) => s.date)
+      .map((s) => {
+        const d = new Date(s.date!);
+        const primaryName =
+          s.artists[0]?.canonicalName ?? s.title ?? '공연';
+        const secondaryTitle =
+          s.artists.length > 0 && s.title ? s.title : null;
+        return {
+          key: `s:${s.id}`,
+          href: `/shows/${s.id}`,
+          type: 'SHOW' as const,
+          imageUrl: s.imageUrl,
+          primaryName,
+          secondaryTitle,
+          city: s.venue?.region ?? null,
+          venueName: s.venue?.name ?? null,
+          date: d,
+          dayLabel: formatWeekdayShort(d),
+        };
+      });
+
+    const items: UpcomingItem[] = [...festivalItems, ...showItems]
+      .sort((a, b) => (a.date?.getTime() ?? 0) - (b.date?.getTime() ?? 0))
       .slice(0, 8);
 
     return (
-      <>
-        <BrandHeader />
-        <main className="container mx-auto max-w-5xl px-6 py-20">
-          <h2 className="text-5xl font-bold leading-[1.1] tracking-tightest text-neutral-900 md:text-7xl">
-            국내 인디
-            <br />
-            공연·페스티벌.
-          </h2>
-          <p className="mt-6 text-base text-neutral-500">
-            전국 인디 씬의 공연과 페스티벌을 한 곳에서.
-          </p>
-          <SearchForm />
-          <p className="mt-4 text-xs uppercase tracking-widest text-neutral-400">
-            아티스트 · 공연장 · 페스티벌
-          </p>
-
-          {cards.length > 0 ? (
-            <section className="mt-20">
-              <p className="text-[11px] uppercase tracking-widest text-neutral-400">
-                다가오는 공연
-              </p>
-              <div className="mt-6 grid grid-cols-2 gap-x-5 gap-y-10 md:grid-cols-3 lg:grid-cols-4">
-                {cards.map((c) =>
-                  c.kind === 'festival' ? (
-                    <FestivalCard key={c.key} festival={c.data} />
-                  ) : (
-                    <ShowCard key={c.key} show={c.data} />
-                  ),
-                )}
-              </div>
-            </section>
-          ) : null}
+      <div className="min-h-screen bg-ink-900 font-sans text-paper">
+        <HomeHeader />
+        <main>
+          <section className="mx-auto max-w-[1400px] px-6 pb-12 pt-10 sm:px-10 sm:pt-14">
+            <HomeHero />
+            <div className="mt-10 sm:mt-12">
+              <HomeSearchBar />
+              <HomeFilterChips />
+            </div>
+          </section>
+          <UpcomingSection items={items} />
         </main>
-      </>
+      </div>
     );
   }
 
