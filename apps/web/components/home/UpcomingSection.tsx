@@ -52,8 +52,8 @@ export function UpcomingSection({ items }: { items: UpcomingItem[] }) {
 
       {items.length > 0 ? (
         <div className="grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-4">
-          {items.map((item) => (
-            <PosterCard key={item.key} {...item} />
+          {items.map(({ key, ...cardProps }) => (
+            <PosterCard key={key} {...cardProps} />
           ))}
         </div>
       ) : (
