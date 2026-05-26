@@ -143,13 +143,22 @@ model ShowMergeLog {
 
 model Show {
   id                String    @id @default(cuid())
-  date              DateTime? @db.Date // v4: nullable (Model A)
-  startTime         String?
+  // v6: per-performance times moved to ShowSession. Legacy columns retained
+  // (deprecated, populated by ingest for back-compat until read paths migrate).
+  date              DateTime? @db.Date /// DEPRECATED — use sessions[0].date / firstSessionDate
+  startTime         String?            /// DEPRECATED — use sessions[0].startTime
+  // v6: denormalized session date range for fast sort/filter without join.
+  // Maintained by ingest and merge scripts.
+  firstSessionDate  DateTime? @db.Date
+  lastSessionDate   DateTime? @db.Date
+  sessions          ShowSession[]
   venueId           String? // v4: nullable
   venue             Venue?    @relation(fields: [venueId], references: [id])
   artists           Artist[]  @relation("ShowArtists") // v4: 0개여도 OK
   title             String?
   originalPostUrl   String    @unique // v4: 자연 키 (1 IG post → 1 Show)
+  // v6 deprecated — ticketUrl moved to ShowSession (per-day open/url differs).
+  // Kept as fallback display when sessions are empty/legacy.
   ticketUrl         String?
   imageUrl          String?
   rawTextExcerpt    String?   @db.Text
@@ -171,9 +180,32 @@ model Show {
   updatedAt         DateTime  @updatedAt
 
   @@index([date])
+  @@index([firstSessionDate])                          // v6: 새 정렬 인덱스
   @@index([festivalId])
   @@index([completeness, date]) // v4: 검색 랭킹·관리자 큐 정렬용
+  @@index([completeness, firstSessionDate])            // v6: 같은 용도, sessions 기반
   @@index([duplicateOfShowId]) // v5.1: '중복 후보' 탭 쿼리
+}
+
+/// v6: Each calendar performance of a named Show.
+/// Multi-day or multi-session shows produce N rows; single-day shows produce 1.
+model ShowSession {
+  id           String    @id @default(cuid())
+  showId       String
+  show         Show      @relation(fields: [showId], references: [id], onDelete: Cascade)
+  date         DateTime  @db.Date
+  startTime    String?   // "HH:MM" 24h
+  endTime      String?   // "HH:MM" 24h, optional
+  ticketUrl    String?   // 일자별 예매 페이지가 다를 수 있어 session-level
+  ticketOpenAt DateTime? // 일자별 오픈 시각이 다를 수 있어 session-level
+  capacity     Int?
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([showId, date]) // 같은 Show + 같은 일자 = 같은 Session (idempotent upsert)
+  @@index([date])
+  @@index([showId])
 }
 
 model Setlist {

@@ -68,17 +68,18 @@ export default async function HomePage({
       }),
       prisma.show.findMany({
         where: {
-          date: { gte: startOfToday },
+          // v6: include shows currently mid-run (lastSessionDate >= today)
+          lastSessionDate: { gte: startOfToday },
           completeness: { gte: 1 },
           duplicateOfShowId: null,
           festivalId: null,
         },
-        orderBy: [{ date: 'asc' }],
+        orderBy: [{ firstSessionDate: 'asc' }],
         take: 8,
         select: {
           id: true,
-          date: true,
-          startTime: true,
+          firstSessionDate: true,
+          lastSessionDate: true,
           title: true,
           originalPostUrl: true,
           imageUrl: true,
@@ -121,9 +122,9 @@ export default async function HomePage({
       });
 
     const showItems: UpcomingItem[] = upcomingShows
-      .filter((s) => s.date)
+      .filter((s) => s.firstSessionDate)
       .map((s) => {
-        const d = new Date(s.date!);
+        const d = new Date(s.firstSessionDate!);
         const primaryName =
           s.artists[0]?.canonicalName ?? s.title ?? '공연';
         const secondaryTitle =
@@ -174,8 +175,8 @@ export default async function HomePage({
           where: { id: { in: showIds } },
           select: {
             id: true,
-            date: true,
-            startTime: true,
+            firstSessionDate: true,
+            lastSessionDate: true,
             title: true,
             originalPostUrl: true,
             imageUrl: true,
@@ -244,7 +245,13 @@ export default async function HomePage({
           kind: 'show',
           key: r.id,
           data,
-          sortDate: data.date ? new Date(data.date) : null,
+          // v6: sortDate = lastSessionDate so multi-day shows mid-run still
+          // qualify as upcoming; falls back to firstSessionDate for safety.
+          sortDate: data.lastSessionDate
+            ? new Date(data.lastSessionDate)
+            : data.firstSessionDate
+              ? new Date(data.firstSessionDate)
+              : null,
         });
       }
     } else if (r.kind === 'festival') {

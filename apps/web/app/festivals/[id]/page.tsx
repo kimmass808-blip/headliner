@@ -1,13 +1,47 @@
 /**
- * Headliner — Festival 상세 페이지 (AC-10).
+ * Headliner — Festival 상세 페이지 (다크 무드).
+ * Show 상세와 동일한 레이아웃 패턴 — 다른 점은 라인업 섹션과 날짜 범위.
  */
 
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@mft/db';
-import { BrandHeader } from '../../../components/BrandHeader';
+import { HomeHeader } from '../../../components/home/Header';
+import { BackLink } from '../../../components/common/BackLink';
+import { PosterColumn } from '../../../components/show/PosterColumn';
+import { FestivalInfoColumn } from '../../../components/festival/InfoColumn';
+import {
+  LineupSection,
+  type LineupShow,
+} from '../../../components/festival/LineupSection';
 
 export const dynamic = 'force-dynamic';
+
+const WEEKDAY_KR_FULL = [
+  '일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일',
+] as const;
+const WEEKDAY_KR_SHORT = ['일', '월', '화', '수', '목', '금', '토'] as const;
+const WEEKDAY_EN = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'] as const;
+
+function fmt(d: Date): string {
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function fmtMd(d: Date): string {
+  return `${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function deriveTicketLabel(url: string): string {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, '');
+    if (host.includes('yes24')) return 'YES24 티켓';
+    if (host.includes('interpark')) return '인터파크 티켓';
+    if (host.includes('melon')) return '멜론 티켓';
+    if (host.includes('ticketlink')) return '티켓링크';
+    return '예매 페이지';
+  } catch {
+    return '예매 페이지';
+  }
+}
 
 export default async function FestivalDetailPage({
   params,
@@ -21,177 +55,108 @@ export default async function FestivalDetailPage({
       venue: true,
       shows: {
         include: {
-          artists: true,
+          artists: { select: { id: true, canonicalName: true } },
           setlist: { select: { id: true } },
+          // v6: festival appearances are single-day; first session carries
+          // the per-day start time.
+          sessions: { orderBy: { date: 'asc' }, take: 1 },
         },
-        orderBy: [{ date: 'asc' }, { stage: 'asc' }, { setOrder: 'asc' }],
+        orderBy: [{ firstSessionDate: 'asc' }, { stage: 'asc' }, { setOrder: 'asc' }],
       },
     },
   });
 
   if (!festival) notFound();
 
-  const dayMap = new Map<string, Map<string, typeof festival.shows>>();
+  // 날짜 텍스트·키커
+  const startDate = festival.startDate ? new Date(festival.startDate) : null;
+  const endDate = festival.endDate ? new Date(festival.endDate) : null;
+  const isMultiDay = startDate && endDate && endDate.getTime() !== startDate.getTime();
+
+  const dateText = (() => {
+    if (!startDate) return null;
+    if (isMultiDay && endDate) return `${fmt(startDate)} ~ ${fmtMd(endDate)}`;
+    return fmt(startDate);
+  })();
+
+  const startMonthDay: [string, string] | null = startDate
+    ? [String(startDate.getMonth() + 1).padStart(2, '0'), String(startDate.getDate()).padStart(2, '0')]
+    : null;
+
+  const dayBadge = (() => {
+    if (!startDate) return null;
+    if (isMultiDay && endDate) {
+      const diff = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      return `${diff} DAYS`;
+    }
+    return WEEKDAY_EN[startDate.getDay()];
+  })();
+
+  const dayKrRange = (() => {
+    if (!startDate) return null;
+    if (isMultiDay && endDate) {
+      return `${WEEKDAY_KR_SHORT[startDate.getDay()]}~${WEEKDAY_KR_SHORT[endDate.getDay()]}`;
+    }
+    return WEEKDAY_KR_FULL[startDate.getDay()];
+  })();
+
+  // 라인업 — day → stage → shows로 그룹.
+  // v6: group by firstSessionDate (denormalized) and pull startTime from sessions[0].
+  const dayMap = new Map<string, Map<string, LineupShow[]>>();
   for (const show of festival.shows) {
-    const dayKey = show.date ? new Date(show.date).toISOString().slice(0, 10) : 'unknown';
+    const dayKey = show.firstSessionDate
+      ? new Date(show.firstSessionDate).toISOString().slice(0, 10)
+      : 'unknown';
     const stageKey = show.stage ?? '(스테이지 미정)';
     if (!dayMap.has(dayKey)) dayMap.set(dayKey, new Map());
     const stages = dayMap.get(dayKey)!;
     if (!stages.has(stageKey)) stages.set(stageKey, []);
-    stages.get(stageKey)!.push(show);
+    stages.get(stageKey)!.push({
+      id: show.id,
+      startTime: show.sessions[0]?.startTime ?? null,
+      stage: show.stage,
+      artists: show.artists,
+      hasSetlist: Boolean(show.setlist),
+    });
   }
-  const days = Array.from(dayMap.keys()).sort();
 
-  const dateRange = (() => {
-    if (festival.startDate && festival.endDate) {
-      const s = new Date(festival.startDate);
-      const e = new Date(festival.endDate);
-      return `${s.toLocaleDateString('ko-KR')} – ${e.toLocaleDateString('ko-KR')}`;
-    }
-    if (festival.startDate) {
-      return new Date(festival.startDate).toLocaleDateString('ko-KR');
-    }
-    return '기간 미정';
-  })();
+  const venueName = festival.locationText ?? festival.venue?.name ?? null;
+  const city = festival.venue?.region ?? null;
 
   return (
-    <>
-      <BrandHeader />
+    <div className="min-h-screen bg-ink-900 font-sans text-paper">
+      <HomeHeader />
 
-      <main className="container mx-auto max-w-5xl px-6 py-10 md:py-16">
-        <Link
-          href="/"
-          className="text-[11px] uppercase tracking-widest text-neutral-400 hover:text-accent"
-        >
-          ← Search
-        </Link>
+      <main>
+        <section className="mx-auto max-w-[1400px] px-6 pt-8 sm:px-10 sm:pt-10">
+          <BackLink />
+        </section>
 
-        <article className="mt-8">
-          <div className="grid grid-cols-1 gap-10 md:grid-cols-[1fr_1.5fr]">
-            <div className="aspect-[3/4] w-full overflow-hidden bg-neutral-100">
-              {festival.posterImageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={festival.posterImageUrl}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center bg-neutral-900 text-white">
-                  <span className="text-xs uppercase tracking-widest">Festival</span>
-                </div>
-              )}
-            </div>
-
-            <div>
-              <p className="text-[11px] uppercase tracking-widest text-accent">
-                Festival
-              </p>
-              <h2 className="mt-3 text-4xl font-bold leading-tight tracking-tightest text-neutral-900 md:text-6xl">
-                {festival.name}
-              </h2>
-              <p className="mt-4 text-base text-neutral-500">{dateRange}</p>
-              {festival.locationText ?? festival.venue?.name ? (
-                <p className="text-base text-neutral-500">
-                  {festival.locationText ?? festival.venue?.name}
-                </p>
-              ) : null}
-              <div className="mt-6 flex gap-6 text-sm">
-                {festival.officialUrl ? (
-                  <a
-                    href={festival.officialUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-accent hover:text-accent-ink"
-                  >
-                    공식 →
-                  </a>
-                ) : null}
-                {festival.ticketUrl ? (
-                  <a
-                    href={festival.ticketUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-accent hover:text-accent-ink"
-                  >
-                    예매 →
-                  </a>
-                ) : null}
-              </div>
-              {festival.description ? (
-                <p className="mt-8 whitespace-pre-line text-sm leading-relaxed text-neutral-600">
-                  {festival.description}
-                </p>
-              ) : null}
-            </div>
+        <section className="mx-auto mt-6 max-w-[1400px] px-6 sm:mt-8 sm:px-10">
+          <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,520px)_1fr] lg:gap-16">
+            <PosterColumn
+              imageUrl={festival.posterImageUrl}
+              alt={festival.name}
+              dateLabel={dateText}
+            />
+            <FestivalInfoColumn
+              name={festival.name}
+              dateText={dateText}
+              startMonthDay={startMonthDay}
+              dayBadge={dayBadge}
+              dayKrRange={dayKrRange}
+              venueName={venueName}
+              city={city}
+              ticketUrl={festival.ticketUrl}
+              ticketLabel={festival.ticketUrl ? deriveTicketLabel(festival.ticketUrl) : null}
+              officialUrl={festival.officialUrl}
+              description={festival.description}
+            />
           </div>
+        </section>
 
-          <section className="mt-16 border-t border-neutral-200 pt-10">
-            <p className="text-[11px] uppercase tracking-widest text-neutral-400">
-              Lineup
-            </p>
-
-            {days.length === 0 ? (
-              <p className="mt-6 text-sm text-neutral-400">라인업 미등록</p>
-            ) : (
-              <div className="mt-8 space-y-12">
-                {days.map((dayKey) => {
-                  const stages = dayMap.get(dayKey)!;
-                  const dayLabel =
-                    dayKey === 'unknown'
-                      ? '(날짜 미정)'
-                      : new Date(dayKey).toLocaleDateString('ko-KR', {
-                          month: 'short',
-                          day: 'numeric',
-                          weekday: 'short',
-                        });
-                  return (
-                    <div key={dayKey}>
-                      <h3 className="text-xl font-bold tracking-tightest text-neutral-900">
-                        {dayLabel}
-                      </h3>
-                      <div className="mt-4 grid gap-x-6 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
-                        {Array.from(stages.entries()).map(([stage, shows]) => (
-                          <div key={stage}>
-                            <p className="text-[11px] uppercase tracking-widest text-neutral-400">
-                              {stage}
-                            </p>
-                            <ul className="mt-2 space-y-2">
-                              {shows.map((show) => (
-                                <li
-                                  key={show.id}
-                                  className="border-b border-neutral-100 pb-2"
-                                >
-                                  <Link
-                                    href={`/shows/${show.id}`}
-                                    className="text-base text-neutral-900 hover:text-accent"
-                                  >
-                                    {show.startTime ? (
-                                      <span className="font-mono text-sm text-neutral-400">
-                                        {show.startTime}{' '}
-                                      </span>
-                                    ) : null}
-                                    {show.artists.map((a) => a.canonicalName).join(', ')}
-                                    {show.setlist ? (
-                                      <span className="ml-2 text-[10px] uppercase tracking-wider text-accent">
-                                        Setlist
-                                      </span>
-                                    ) : null}
-                                  </Link>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-        </article>
+        <LineupSection dayMap={dayMap} totalShows={festival.shows.length} />
       </main>
-    </>
+    </div>
   );
 }

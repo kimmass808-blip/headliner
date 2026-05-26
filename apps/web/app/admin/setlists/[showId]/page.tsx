@@ -105,8 +105,8 @@ export default async function AdminSetlistPage({
       <h1 className="mt-4 text-2xl font-bold">셋리스트 입력</h1>
       <p className="mt-1 text-sm text-zinc-500">
         {show.artists.map((a) => a.canonicalName).join(', ')}
-        {show.date
-          ? ` · ${new Date(show.date).toLocaleDateString('ko-KR')}`
+        {show.firstSessionDate
+          ? ` · ${new Date(show.firstSessionDate).toLocaleDateString('ko-KR')}${show.lastSessionDate && show.lastSessionDate.getTime() !== show.firstSessionDate.getTime() ? `~${new Date(show.lastSessionDate).toLocaleDateString('ko-KR')}` : ''}`
           : ''}
         {show.venue ? ` · ${show.venue.name}` : ''}
       </p>

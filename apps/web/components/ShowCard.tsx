@@ -10,8 +10,9 @@ import { PosterCard, formatWeekdayShort } from './home/PosterCard';
 
 type Show = {
   id: string;
-  date: Date | null;
-  startTime: string | null;
+  // v6: denormalized session range. Single-day = both equal; multi-day = range.
+  firstSessionDate: Date | null;
+  lastSessionDate: Date | null;
   title: string | null;
   originalPostUrl: string;
   imageUrl: string | null;
@@ -24,7 +25,8 @@ type Show = {
 };
 
 export function ShowCard({ show }: { show: Show }) {
-  const d = show.date ? new Date(show.date) : null;
+  // Card shows the first session date; range hint is on the detail page.
+  const d = show.firstSessionDate ? new Date(show.firstSessionDate) : null;
   const primaryName =
     show.artists[0]?.canonicalName ?? show.title ?? '공연';
   const secondaryTitle =

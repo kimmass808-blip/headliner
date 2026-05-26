@@ -50,6 +50,7 @@ export default async function ShowDetailPage({
       artists: { select: { id: true, canonicalName: true } },
       festival: { select: { id: true, name: true } },
       setlist: { include: { songs: { orderBy: { order: 'asc' } } } },
+      sessions: { orderBy: { date: 'asc' } },
     },
   });
 
@@ -61,16 +62,31 @@ export default async function ShowDetailPage({
     select: { sourceAccount: true },
   });
 
-  // 날짜 분해
-  const d = show.date ? new Date(show.date) : null;
-  const dateText = d
-    ? `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
-    : null;
-  const monthDay: [string, string] | null = d
-    ? [String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')]
-    : null;
-  const dayShort = d ? WEEKDAY_EN[d.getDay()] : null;
-  const dayKr = d ? WEEKDAY_KR[d.getDay()] : null;
+  // v6: ShowSession is the canonical source. Phase 1 backfill guarantees every
+  // dated Show has ≥1 session row; ingest always writes both. Legacy Show.date
+  // remains as a Phase 6 cleanup target — do not read it here.
+  const sessions = show.sessions.map((s) => {
+    const d = new Date(s.date);
+    return {
+      date: `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`,
+      monthDay: [
+        String(d.getMonth() + 1).padStart(2, '0'),
+        String(d.getDate()).padStart(2, '0'),
+      ] as [string, string],
+      dayShort: WEEKDAY_EN[d.getDay()]!,
+      dayKr: WEEKDAY_KR[d.getDay()]!,
+      startTime: s.startTime,
+      ticketUrl: s.ticketUrl,
+      ticketLabel: s.ticketUrl ? deriveTicketLabel(s.ticketUrl) : null,
+    };
+  });
+
+  // Poster column 캡션용 날짜 라벨 — single / multi-day range
+  const posterDateLabel = sessions.length === 0
+    ? null
+    : sessions.length === 1
+      ? sessions[0]!.date
+      : `${sessions[0]!.date} – ${sessions[sessions.length - 1]!.date}`;
 
   // 셋리스트 → 본편/앙코르 분리 + 각각 1부터 재번호
   const songs: SongRowData[] = show.setlist
@@ -102,20 +118,14 @@ export default async function ShowDetailPage({
             <PosterColumn
               imageUrl={show.imageUrl}
               alt={posterAlt}
-              dateLabel={dateText}
+              dateLabel={posterDateLabel}
             />
             <InfoColumn
               artists={show.artists}
               title={show.title}
-              dateText={dateText}
-              monthDay={monthDay}
-              dayShort={dayShort}
-              dayKr={dayKr}
-              startTime={show.startTime}
+              sessions={sessions}
               venueName={show.venue?.name ?? null}
               city={show.venue?.region ?? null}
-              ticketUrl={show.ticketUrl}
-              ticketLabel={show.ticketUrl ? deriveTicketLabel(show.ticketUrl) : null}
               sourceUrl={show.originalPostUrl}
               sourceLabel={deriveSourceLabel(igPost?.sourceAccount ?? null)}
               festival={

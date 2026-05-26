@@ -31,45 +31,65 @@ async function saveFields(formData: FormData) {
   const venueText = formData.get('venueText')?.toString().trim() || null;
   const artistsText = formData.get('artists')?.toString().trim() || null;
 
-  // 간단 적용 — 실제 production 흐름은 canonicalize·merge UX 거침.
-  // V1 admin은 directly Show.{date,venue,artists}만 업데이트하고 completeness 재계산.
-  // (artist 추가는 별도 endpoint로 옮길 필요 있음 — V1.1)
+  // V1 admin: date 보강만 처리 (venue/artists는 /admin/shows/[id] 보정 폼).
+  // v6: a date input upserts a ShowSession by (showId, date) and mirrors to
+  // the legacy Show.date/firstSessionDate denormalized fields.
 
-  const updates: Record<string, unknown> = {};
-  if (date) updates.date = new Date(date);
-  // venue·artists 변경은 별도 트랜잭션 필요 (canonicalize·upsert·재fingerprint·merge UX).
-  // 본 V1 페이지는 date 보강만 처리. venue/artists는 /admin/shows/[id] 보정 폼으로 라우팅.
-
-  if (Object.keys(updates).length === 0) {
+  if (!date) {
     if (venueText || artistsText) {
-      // 사용자가 venue/artists를 입력했지만 본 페이지는 date만 처리 — 풍부한 보정 라우트로 가이드
+      // venue/artists 입력은 풍부한 보정 라우트로 — 본 페이지 미지원
     }
     return;
   }
 
-  // completeness 재계산 — Show 모델에 venueId/artists 관계 고려
   const show = await prisma.show.findUnique({
     where: { id: showId },
-    include: { artists: { select: { id: true } }, venue: { select: { id: true } } },
+    include: {
+      artists: { select: { id: true } },
+      venue: { select: { id: true } },
+      sessions: { orderBy: { date: 'asc' } },
+    },
   });
   if (!show) return;
-  const hasDate = !!(updates.date ?? show.date);
-  const hasVenue = !!show.venueId;
-  const hasArtists = show.artists.length >= 1;
-  const completeness = (hasDate ? 1 : 0) + (hasVenue ? 1 : 0) + (hasArtists ? 1 : 0);
-  const missingFields: string[] = [];
-  if (!hasDate) missingFields.push('date');
-  if (!hasVenue) missingFields.push('venue');
-  if (!hasArtists) missingFields.push('artists');
 
-  await prisma.show.update({
-    where: { id: showId },
-    data: {
-      ...updates,
-      completeness,
-      missingFields,
-      needsReview: completeness < 3,
-    },
+  const newDate = new Date(date);
+
+  await prisma.$transaction(async (tx) => {
+    // 1) Upsert the session
+    await tx.showSession.upsert({
+      where: { showId_date: { showId, date: newDate } },
+      update: {},
+      create: { showId, date: newDate },
+    });
+
+    // 2) Refresh denormalized range from all sessions (including the new one)
+    const all = await tx.showSession.findMany({
+      where: { showId }, orderBy: { date: 'asc' },
+    });
+    const first = all[0]!;
+    const last = all[all.length - 1]!;
+
+    // 3) Recompute completeness now that hasDate flips true
+    const hasVenue = !!show.venueId;
+    const hasArtists = show.artists.length >= 1;
+    const completeness = 1 + (hasVenue ? 1 : 0) + (hasArtists ? 1 : 0);
+    const missingFields: string[] = [];
+    if (!hasVenue) missingFields.push('venue');
+    if (!hasArtists) missingFields.push('artists');
+
+    await tx.show.update({
+      where: { id: showId },
+      data: {
+        firstSessionDate: first.date,
+        lastSessionDate: last.date,
+        // Legacy mirror — Phase 6 will remove these.
+        date: first.date,
+        startTime: first.startTime,
+        completeness,
+        missingFields,
+        needsReview: completeness < 3,
+      },
+    });
   });
 
   // TODO: completeness=3 도달 시 fingerprint 재계산 + AC-5b merge UX 발동 (별도 라우트 권고)
@@ -91,10 +111,11 @@ export default async function AdminIncompletePage({
       return { duplicateOfShowId: { not: null } };
     }
     const w: Record<string, unknown> = { needsReview: true, duplicateOfShowId: null };
+    // v6: filter by sessions range — multi-day shows mid-run still count upcoming.
     if (tab === 'upcoming') {
-      w.OR = [{ date: { gte: today } }, { date: null }];
+      w.OR = [{ lastSessionDate: { gte: today } }, { lastSessionDate: null }];
     } else if (tab === 'past') {
-      w.date = { lt: today };
+      w.lastSessionDate = { lt: today };
     }
     if (missing) {
       w.missingFields = { has: missing };
@@ -109,7 +130,7 @@ export default async function AdminIncompletePage({
         ? [{ createdAt: 'desc' }]
         : tab === 'duplicates'
         ? [{ createdAt: 'desc' }]
-        : [{ date: { sort: 'asc', nulls: 'last' } }, { createdAt: 'desc' }],
+        : [{ firstSessionDate: { sort: 'asc', nulls: 'last' } }, { createdAt: 'desc' }],
     take: 50,
     include: {
       venue: true,
@@ -181,13 +202,14 @@ export default async function AdminIncompletePage({
 
       <div className="mt-6 space-y-3">
         {shows.map((show) => {
-          const dateStr = show.date
-            ? new Date(show.date).toLocaleDateString('ko-KR', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                weekday: 'short',
-              })
+          const fmt = (d: Date) =>
+            d.toLocaleDateString('ko-KR', {
+              year: 'numeric', month: 'short', day: 'numeric', weekday: 'short',
+            });
+          const dateStr = show.firstSessionDate
+            ? show.lastSessionDate && show.lastSessionDate.getTime() !== show.firstSessionDate.getTime()
+              ? `${fmt(show.firstSessionDate)} ~ ${fmt(show.lastSessionDate)}`
+              : fmt(show.firstSessionDate)
             : null;
           const badge = formatMissingFieldsBadge(show.missingFields as MissingFieldKey[]);
           return (
@@ -237,7 +259,7 @@ export default async function AdminIncompletePage({
 
               {tab !== 'duplicates' &&
               show.missingFields.includes('date') &&
-              !show.date ? (
+              !show.firstSessionDate ? (
                 <form action={saveFields} className="mt-3 flex items-end gap-2">
                   <input type="hidden" name="showId" value={show.id} />
                   <div className="flex-1">
