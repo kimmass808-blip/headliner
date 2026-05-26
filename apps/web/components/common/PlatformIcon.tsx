@@ -3,6 +3,8 @@
  * Headliner 톤(lucide 스타일, stroke 1.6)으로 단순화한 line icon.
  */
 
+import type { ReactElement } from 'react';
+
 export type PlatformKind =
   | 'instagram'
   | 'website'
@@ -63,7 +65,7 @@ function IconGeneric({ className = '' }: IconProps) {
   );
 }
 
-const ICONS: Record<PlatformKind, (p: IconProps) => JSX.Element> = {
+const ICONS: Record<PlatformKind, (p: IconProps) => ReactElement> = {
   instagram: IconInstagram,
   website: IconWebsite,
   youtube: IconYouTube,
