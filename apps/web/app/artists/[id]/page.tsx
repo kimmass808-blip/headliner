@@ -101,7 +101,9 @@ export default async function ArtistDetailPage({
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
 
-  function mapShow(show: (typeof artist.shows)[number]): ShowsGridItem {
+  // arrow const는 narrowing 이후 정의되므로 `artist`가 non-null로 추론됨.
+  // (function 선언은 hoisting 때문에 TS가 `artist` 가능성 null로 봄)
+  const mapShow = (show: (typeof artist.shows)[number]): ShowsGridItem => {
     // v6: card displays first session date. Multi-session range is shown on
     // the show detail page; cards remain single-date for layout simplicity.
     const d = show.firstSessionDate ? new Date(show.firstSessionDate) : null;
@@ -119,7 +121,7 @@ export default async function ArtistDetailPage({
       date: d,
       dayLabel: formatWeekdayShort(d),
     };
-  }
+  };
 
   // v6: upcoming = any session today or later (use lastSessionDate so multi-day
   // shows mid-run still count as upcoming). Past = lastSessionDate before today.
