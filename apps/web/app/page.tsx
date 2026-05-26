@@ -2,12 +2,10 @@
  * Headliner — 공개 검색 메인 페이지 (AC-7, AC-7b, AC-8).
  */
 
-import Link from 'next/link';
 import { defaultSearchEngine } from '@mft/search';
 import { prisma } from '@mft/db';
 import { ShowCard } from '../components/ShowCard';
 import { FestivalCard } from '../components/FestivalCard';
-import { ArtistResultCard } from '../components/ArtistResultCard';
 import { HomeHeader } from '../components/home/Header';
 import { HomeHero } from '../components/home/Hero';
 import { HomeSearchBar } from '../components/home/SearchBar';
@@ -17,11 +15,22 @@ import {
   type UpcomingItem,
 } from '../components/home/UpcomingSection';
 import { formatWeekdayShort } from '../components/home/PosterCard';
+import {
+  ResultsBar,
+  type SearchFilterType,
+} from '../components/search/ResultsBar';
+import { ArtistSection } from '../components/search/ArtistSection';
+import { EmptyState } from '../components/search/EmptyState';
 
 export const dynamic = 'force-dynamic';
 
 interface SearchParams {
   q?: string;
+  type?: string;
+}
+
+function isValidFilter(t: string | undefined): t is SearchFilterType {
+  return t === 'all' || t === 'artist' || t === 'show' || t === 'festival';
 }
 
 export default async function HomePage({
@@ -29,8 +38,9 @@ export default async function HomePage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const { q = '' } = await searchParams;
+  const { q = '', type } = await searchParams;
   const trimmed = q.trim();
+  const filter: SearchFilterType = isValidFilter(type) ? type : 'all';
 
   if (!trimmed) {
     const startOfToday = new Date();
@@ -196,7 +206,14 @@ export default async function HomePage({
     artistIds.length
       ? prisma.artist.findMany({
           where: { id: { in: artistIds } },
-          select: { id: true, canonicalName: true, aliases: true, igHandle: true },
+          select: {
+            id: true,
+            canonicalName: true,
+            aliases: true,
+            igHandle: true,
+            imageUrl: true,
+            spotifyImageUrl: true,
+          },
         })
       : [],
   ]);
@@ -205,68 +222,155 @@ export default async function HomePage({
   const festivalMap = new Map(festivals.map((f) => [f.id, f]));
   const artistMap = new Map(artists.map((a) => [a.id, a]));
 
-  const contextLabel =
-    search.contextMode === 'festival_mode'
-      ? 'Festival'
-      : search.contextMode === 'artist_mode'
-      ? 'Artist'
-      : `${search.results.length} 결과`;
+  // 카드 종류별로 분리
+  type ShowCardData = NonNullable<ReturnType<typeof showMap.get>>;
+  type FestivalCardData = NonNullable<ReturnType<typeof festivalMap.get>>;
+  type ArtistCardData = NonNullable<ReturnType<typeof artistMap.get>>;
+  type PosterCardResult =
+    | { kind: 'show'; key: string; data: ShowCardData; sortDate: Date | null }
+    | { kind: 'festival'; key: string; data: FestivalCardData; sortDate: Date | null };
 
-  // 카드 종류별로 분리해서 영역화
-  type CardResult =
-    | { kind: 'show'; key: string; data: NonNullable<ReturnType<typeof showMap.get>> }
-    | { kind: 'festival'; key: string; data: NonNullable<ReturnType<typeof festivalMap.get>> }
-    | { kind: 'artist'; key: string; data: NonNullable<ReturnType<typeof artistMap.get>> };
+  const artistCards: { key: string; data: ArtistCardData }[] = [];
+  const posterCards: PosterCardResult[] = [];
 
-  const cardResults: CardResult[] = search.results.flatMap<CardResult>((r) => {
-    if (r.kind === 'show') {
+  for (const r of search.results) {
+    if (r.kind === 'artist') {
+      const data = artistMap.get(r.id);
+      if (data) artistCards.push({ key: r.id, data });
+    } else if (r.kind === 'show') {
       const data = showMap.get(r.id);
-      return data ? [{ kind: 'show', key: r.id, data }] : [];
-    }
-    if (r.kind === 'festival') {
+      if (data) {
+        posterCards.push({
+          kind: 'show',
+          key: r.id,
+          data,
+          sortDate: data.date ? new Date(data.date) : null,
+        });
+      }
+    } else if (r.kind === 'festival') {
       const data = festivalMap.get(r.id);
-      return data ? [{ kind: 'festival', key: r.id, data }] : [];
+      if (data) {
+        posterCards.push({
+          kind: 'festival',
+          key: r.id,
+          data,
+          sortDate: data.startDate ? new Date(data.startDate) : null,
+        });
+      }
     }
-    const data = artistMap.get(r.id);
-    return data ? [{ kind: 'artist', key: r.id, data }] : [];
-  });
+  }
 
-  const artistCards = cardResults.filter((c) => c.kind === 'artist');
-  const posterCards = cardResults.filter((c) => c.kind !== 'artist');
+  // upcoming / past 분리 (오늘 기준)
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  const upcomingCards = posterCards.filter(
+    (c) => c.sortDate && c.sortDate >= startOfToday,
+  );
+  const pastCards = posterCards.filter(
+    (c) => !c.sortDate || c.sortDate < startOfToday,
+  );
+
+  // 카운트는 필터 적용 전 전체값
+  const totalShows = posterCards.filter((c) => c.kind === 'show').length;
+  const totalFestivals = posterCards.filter((c) => c.kind === 'festival').length;
+  const totals = {
+    all: artistCards.length + totalShows + totalFestivals,
+    artist: artistCards.length,
+    show: totalShows,
+    festival: totalFestivals,
+  };
+
+  // 필터 적용
+  const visibleArtists = filter === 'all' || filter === 'artist' ? artistCards : [];
+  const filterPoster = (cards: PosterCardResult[]) => {
+    if (filter === 'artist') return [];
+    if (filter === 'show') return cards.filter((c) => c.kind === 'show');
+    if (filter === 'festival') return cards.filter((c) => c.kind === 'festival');
+    return cards;
+  };
+  const visibleUpcoming = filterPoster(upcomingCards);
+  const visiblePast = filterPoster(pastCards);
+
+  const hasAnyResults =
+    visibleArtists.length + visibleUpcoming.length + visiblePast.length > 0;
+
+  function renderPosterCard(c: PosterCardResult) {
+    if (c.kind === 'show') return <ShowCard key={c.key} show={c.data} />;
+    return <FestivalCard key={c.key} festival={c.data} />;
+  }
 
   return (
     <div className="min-h-screen bg-ink-900 font-sans text-paper">
       <HomeHeader />
-      <main className="mx-auto max-w-[1400px] px-6 pb-24 pt-10 sm:px-10 sm:pt-14">
+
+      <section className="mx-auto max-w-[1400px] px-6 pt-10 sm:px-10 sm:pt-12">
         <HomeSearchBar initialQuery={trimmed} />
-        <p className="mt-4 text-center text-[11px] uppercase tracking-[0.3em] text-paper/45">
-          {contextLabel}
-        </p>
+      </section>
 
-        {artistCards.length > 0 ? (
-          <section className="mt-12">
-            {artistCards.map((c) => (
-              <ArtistResultCard key={c.key} artist={c.data} />
-            ))}
-          </section>
-        ) : null}
+      <main className="pb-24">
+        {hasAnyResults ? (
+          <>
+            <ResultsBar query={trimmed} filter={filter} totals={totals} />
 
-        {posterCards.length > 0 ? (
-          <section className="mt-12 grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-4">
-            {posterCards.map((c) => {
-              if (c.kind === 'show') {
-                return <ShowCard key={c.key} show={c.data} />;
-              }
-              return <FestivalCard key={c.key} festival={c.data} />;
-            })}
-          </section>
-        ) : null}
+            <ArtistSection
+              artists={visibleArtists.map((a) => ({
+                id: a.data.id,
+                name: a.data.canonicalName,
+                aliasText: a.data.aliases.length > 0 ? a.data.aliases.join(' · ') : null,
+                imageUrl: a.data.imageUrl ?? a.data.spotifyImageUrl ?? null,
+              }))}
+            />
 
-        {cardResults.length === 0 ? (
-          <p className="py-20 text-center text-sm text-paper/40">
-            검색 결과가 없습니다.
-          </p>
-        ) : null}
+            {visibleUpcoming.length > 0 ? (
+              <section className="mx-auto mt-16 max-w-[1400px] px-6 sm:mt-20 sm:px-10">
+                <div className="hairline mb-10 flex items-end justify-between pb-6">
+                  <div>
+                    <div className="mb-3 text-[11px] uppercase tracking-[0.3em] text-paper/45">
+                      UPCOMING / {new Date().getFullYear()}
+                    </div>
+                    <div className="flex items-baseline gap-3">
+                      <h2 className="text-[28px] font-bold leading-tight tracking-[-0.025em] text-paper sm:text-[34px]">
+                        다가오는 공연
+                      </h2>
+                      <span className="text-[14px] tabular-nums text-paper/40">
+                        {visibleUpcoming.length}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-4">
+                  {visibleUpcoming.map(renderPosterCard)}
+                </div>
+              </section>
+            ) : null}
+
+            {visiblePast.length > 0 ? (
+              <section className="mx-auto mt-16 max-w-[1400px] px-6 sm:mt-20 sm:px-10">
+                <div className="hairline mb-10 flex items-end justify-between pb-6">
+                  <div>
+                    <div className="mb-3 text-[11px] uppercase tracking-[0.3em] text-paper/45">
+                      ARCHIVE
+                    </div>
+                    <div className="flex items-baseline gap-3">
+                      <h2 className="text-[28px] font-bold leading-tight tracking-[-0.025em] text-paper sm:text-[34px]">
+                        지난 공연
+                      </h2>
+                      <span className="text-[14px] tabular-nums text-paper/40">
+                        {visiblePast.length}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-4">
+                  {visiblePast.map(renderPosterCard)}
+                </div>
+              </section>
+            ) : null}
+          </>
+        ) : (
+          <EmptyState query={trimmed} />
+        )}
       </main>
     </div>
   );

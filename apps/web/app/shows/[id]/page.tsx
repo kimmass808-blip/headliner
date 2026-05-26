@@ -1,14 +1,40 @@
 /**
- * Headliner — Show 상세 페이지 (AC-9).
+ * Headliner — Show 상세 페이지 (다크 무드 / design_handoff_headliner_pages 기준).
  */
 
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@mft/db';
-import { formatMissingFieldsBadge, type MissingFieldKey } from '@mft/shared';
-import { BrandHeader } from '../../../components/BrandHeader';
+import { HomeHeader } from '../../../components/home/Header';
+import { BackLink } from '../../../components/common/BackLink';
+import { PosterColumn } from '../../../components/show/PosterColumn';
+import { InfoColumn } from '../../../components/show/InfoColumn';
+import { SetlistSection } from '../../../components/show/SetlistSection';
+import type { SongRowData } from '../../../components/show/SongRow';
 
 export const dynamic = 'force-dynamic';
+
+const WEEKDAY_EN = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'] as const;
+const WEEKDAY_KR = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'] as const;
+
+/** 외부 URL host를 사람이 읽기 좋은 라벨로 ('yes24.com' → 'YES24 티켓') */
+function deriveTicketLabel(url: string): string {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, '');
+    if (host.includes('yes24')) return 'YES24 티켓';
+    if (host.includes('interpark')) return '인터파크 티켓';
+    if (host.includes('melon')) return '멜론 티켓';
+    if (host.includes('ticketlink')) return '티켓링크';
+    return '예매 페이지';
+  } catch {
+    return '예매 페이지';
+  }
+}
+
+/** instagram.com/p/SHORTCODE → '@sourceAccount' (InstagramPost row가 있으면 사용) */
+function deriveSourceLabel(account: string | null): string | null {
+  if (!account) return null;
+  return account.startsWith('@') ? account : `@${account}`;
+}
 
 export default async function ShowDetailPage({
   params,
@@ -16,188 +42,94 @@ export default async function ShowDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+
   const show = await prisma.show.findUnique({
     where: { id },
     include: {
       venue: true,
-      artists: true,
-      festival: { select: { id: true, name: true, startDate: true } },
+      artists: { select: { id: true, canonicalName: true } },
+      festival: { select: { id: true, name: true } },
       setlist: { include: { songs: { orderBy: { order: 'asc' } } } },
     },
   });
 
   if (!show) notFound();
 
-  const badge = formatMissingFieldsBadge(show.missingFields as MissingFieldKey[]);
-  const dateStr = show.date
-    ? new Date(show.date).toLocaleDateString('ko-KR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        weekday: 'long',
-      })
+  // InstagramPost에서 sourceAccount 조회 (있으면 sourceLabel에 사용)
+  const igPost = await prisma.instagramPost.findUnique({
+    where: { canonicalUrl: show.originalPostUrl },
+    select: { sourceAccount: true },
+  });
+
+  // 날짜 분해
+  const d = show.date ? new Date(show.date) : null;
+  const dateText = d
+    ? `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
     : null;
-  const artists = show.artists.map((a) => a.canonicalName).join(', ');
+  const monthDay: [string, string] | null = d
+    ? [String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')]
+    : null;
+  const dayShort = d ? WEEKDAY_EN[d.getDay()] : null;
+  const dayKr = d ? WEEKDAY_KR[d.getDay()] : null;
+
+  // 셋리스트 → 본편/앙코르 분리 + 각각 1부터 재번호
+  const songs: SongRowData[] = show.setlist
+    ? (() => {
+        const all = show.setlist.songs; // 이미 order asc 정렬됨
+        const main = all.filter((s) => !s.isEncore);
+        const encore = all.filter((s) => s.isEncore);
+        return [
+          ...main.map((s, i) => ({ n: i + 1, title: s.title, cover: s.coverOf, encore: false })),
+          ...encore.map((s, i) => ({ n: i + 1, title: s.title, cover: s.coverOf, encore: true })),
+        ];
+      })()
+    : [];
+
+  const artistsAlt = show.artists.map((a) => a.canonicalName).join(', ');
+  const posterAlt = `${artistsAlt}${show.title ? ` — ${show.title}` : ''}`;
 
   return (
-    <>
-      <BrandHeader />
+    <div className="min-h-screen bg-ink-900 font-sans text-paper">
+      <HomeHeader />
 
-      <main className="container mx-auto max-w-3xl px-6 py-10 md:py-16">
-        <Link
-          href="/"
-          className="text-[11px] uppercase tracking-widest text-neutral-400 hover:text-accent"
-        >
-          ← Search
-        </Link>
+      <main>
+        <section className="mx-auto max-w-[1400px] px-6 pt-8 sm:px-10 sm:pt-10">
+          <BackLink />
+        </section>
 
-        <article className="mt-8">
-          {show.imageUrl ? (
-            <div className="flex w-full justify-center bg-neutral-100">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={show.imageUrl}
-                alt=""
-                className="max-h-[70vh] w-auto object-contain"
-              />
-            </div>
-          ) : null}
-
-          <div className="mt-8">
-            {show.festival ? (
-              <Link
-                href={`/festivals/${show.festival.id}`}
-                className="text-[11px] uppercase tracking-widest text-accent hover:text-accent-ink"
-              >
-                {show.festival.name}
-                {show.stage ? ` · ${show.stage}` : ''}
-              </Link>
-            ) : (
-              <p className="text-[11px] uppercase tracking-widest text-neutral-400">
-                Live
-              </p>
-            )}
-            <h2 className="mt-3 text-3xl font-bold leading-tight tracking-tightest text-neutral-900 md:text-5xl">
-              {artists || show.title || '제목 미정'}
-            </h2>
-            {show.title && artists ? (
-              <p className="mt-2 text-base text-neutral-500">{show.title}</p>
-            ) : null}
-            {badge ? (
-              <p className="mt-3 inline-block bg-neutral-100 px-2 py-1 text-[10px] uppercase tracking-wider text-neutral-500">
-                {badge}
-              </p>
-            ) : null}
+        <section className="mx-auto mt-6 max-w-[1400px] px-6 sm:mt-8 sm:px-10">
+          <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,520px)_1fr] lg:gap-16">
+            <PosterColumn
+              imageUrl={show.imageUrl}
+              alt={posterAlt}
+              dateLabel={dateText}
+            />
+            <InfoColumn
+              artists={show.artists}
+              title={show.title}
+              dateText={dateText}
+              monthDay={monthDay}
+              dayShort={dayShort}
+              dayKr={dayKr}
+              startTime={show.startTime}
+              venueName={show.venue?.name ?? null}
+              city={show.venue?.region ?? null}
+              ticketUrl={show.ticketUrl}
+              ticketLabel={show.ticketUrl ? deriveTicketLabel(show.ticketUrl) : null}
+              sourceUrl={show.originalPostUrl}
+              sourceLabel={deriveSourceLabel(igPost?.sourceAccount ?? null)}
+              festival={
+                show.festival
+                  ? { id: show.festival.id, name: show.festival.name, stage: show.stage }
+                  : null
+              }
+              missing={show.missingFields}
+            />
           </div>
+        </section>
 
-          <dl className="mt-10 grid grid-cols-1 gap-y-6 border-t border-neutral-200 pt-8 md:grid-cols-[120px_1fr] md:gap-x-8">
-            <dt className="text-[11px] uppercase tracking-widest text-neutral-400">
-              Date
-            </dt>
-            <dd className="text-base text-neutral-900">
-              {dateStr ?? <span className="text-neutral-400">미정</span>}
-              {show.startTime ? (
-                <span className="text-neutral-500"> · {show.startTime}</span>
-              ) : null}
-            </dd>
-
-            <dt className="text-[11px] uppercase tracking-widest text-neutral-400">
-              Venue
-            </dt>
-            <dd className="text-base text-neutral-900">
-              {show.venue?.name ?? <span className="text-neutral-400">미정</span>}
-              {show.venue?.region ? (
-                <span className="text-neutral-500"> · {show.venue.region}</span>
-              ) : null}
-            </dd>
-
-            <dt className="text-[11px] uppercase tracking-widest text-neutral-400">
-              Artist
-            </dt>
-            <dd className="text-base text-neutral-900">
-              {show.artists.length > 0 ? (
-                artists
-              ) : (
-                <span className="text-neutral-400">미정</span>
-              )}
-            </dd>
-
-            {show.ticketUrl ? (
-              <>
-                <dt className="text-[11px] uppercase tracking-widest text-neutral-400">
-                  Ticket
-                </dt>
-                <dd>
-                  <a
-                    href={show.ticketUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-base text-accent hover:text-accent-ink"
-                  >
-                    예매 →
-                  </a>
-                </dd>
-              </>
-            ) : null}
-
-            <dt className="text-[11px] uppercase tracking-widest text-neutral-400">
-              Source
-            </dt>
-            <dd>
-              <a
-                href={show.originalPostUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-base text-accent hover:text-accent-ink"
-              >
-                인스타그램 원문 →
-              </a>
-            </dd>
-          </dl>
-
-          {show.setlist ? (
-            <section className="mt-16 border-t border-neutral-200 pt-10">
-              <p className="text-[11px] uppercase tracking-widest text-neutral-400">
-                Setlist
-              </p>
-              <ol className="mt-6 space-y-2">
-                {show.setlist.songs.map((song) => (
-                  <li
-                    key={song.id}
-                    className="flex gap-4 border-b border-neutral-100 py-2 text-base"
-                  >
-                    <span className="w-8 text-right font-mono text-sm text-neutral-400">
-                      {String(song.order).padStart(2, '0')}
-                    </span>
-                    <div className="flex-1">
-                      <span className="text-neutral-900">{song.title}</span>
-                      {song.isEncore ? (
-                        <span className="ml-2 text-[10px] uppercase tracking-wider text-accent">
-                          Encore
-                        </span>
-                      ) : null}
-                      {song.coverOf ? (
-                        <span className="ml-2 text-xs text-neutral-400">
-                          cover of {song.coverOf}
-                        </span>
-                      ) : null}
-                    </div>
-                  </li>
-                ))}
-              </ol>
-              {show.setlist.sourceNotes ? (
-                <p className="mt-4 text-xs text-neutral-400">
-                  출처: {show.setlist.sourceNotes}
-                </p>
-              ) : null}
-            </section>
-          ) : (
-            <p className="mt-16 border-t border-neutral-200 pt-10 text-sm text-neutral-400">
-              셋리스트 미등록
-            </p>
-          )}
-        </article>
+        <SetlistSection songs={songs} />
       </main>
-    </>
+    </div>
   );
 }
