@@ -23,9 +23,12 @@ import type {
 type Engine = 'pgroonga' | 'pg_trgm';
 
 function resolveEngine(): Engine {
-  const v = (process.env.SEARCH_ENGINE ?? 'pg_trgm').toLowerCase();
-  if (v === 'pgroonga') return 'pgroonga';
-  return 'pg_trgm';
+  // 기본값은 pgroonga — 한국어 형태소 처리 우선. 마이그레이션에
+  // CREATE EXTENSION pgroonga가 박혀있어 설치 보장됨.
+  // pg_trgm은 한국어 짧은 쿼리(예: '펜타포트')에 매치 실패하므로 명시적 opt-in일 때만 사용.
+  const v = (process.env.SEARCH_ENGINE ?? 'pgroonga').toLowerCase();
+  if (v === 'pg_trgm') return 'pg_trgm';
+  return 'pgroonga';
 }
 
 /**
