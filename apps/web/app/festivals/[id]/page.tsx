@@ -11,8 +11,10 @@ import { PosterColumn } from '../../../components/show/PosterColumn';
 import { FestivalInfoColumn } from '../../../components/festival/InfoColumn';
 import {
   LineupSection,
-  type LineupShow,
-} from '../../../components/festival/LineupSection';
+  type LineupDayData,
+  type LineupChipData,
+} from '../../../components/common/LineupSection';
+import { ymd } from '../../../lib/calendar';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,14 +56,11 @@ export default async function FestivalDetailPage({
     include: {
       venue: true,
       shows: {
+        where: { duplicateOfShowId: null },
         include: {
           artists: { select: { id: true, canonicalName: true } },
-          setlist: { select: { id: true } },
-          // v6: festival appearances are single-day; first session carries
-          // the per-day start time.
-          sessions: { orderBy: { date: 'asc' }, take: 1 },
         },
-        orderBy: [{ firstSessionDate: 'asc' }, { stage: 'asc' }, { setOrder: 'asc' }],
+        orderBy: [{ firstSessionDate: 'asc' }, { setOrder: 'asc' }],
       },
     },
   });
@@ -100,24 +99,33 @@ export default async function FestivalDetailPage({
     return WEEKDAY_KR_FULL[startDate.getDay()];
   })();
 
-  // 라인업 — day → stage → shows로 그룹.
-  // v6: group by firstSessionDate (denormalized) and pull startTime from sessions[0].
-  const dayMap = new Map<string, Map<string, LineupShow[]>>();
+  // 라인업 — 칩 기반 데이별 그룹. day 순서는 firstSessionDate 오름차순.
+  // 각 day 안에서 setOrder 순으로 아티스트 수집, 같은 day 내 중복 이름은 첫 발견만.
+  const dayGroups = new Map<string, { date: Date; chips: LineupChipData[] }>();
   for (const show of festival.shows) {
-    const dayKey = show.firstSessionDate
-      ? new Date(show.firstSessionDate).toISOString().slice(0, 10)
-      : 'unknown';
-    const stageKey = show.stage ?? '(스테이지 미정)';
-    if (!dayMap.has(dayKey)) dayMap.set(dayKey, new Map());
-    const stages = dayMap.get(dayKey)!;
-    if (!stages.has(stageKey)) stages.set(stageKey, []);
-    stages.get(stageKey)!.push({
-      id: show.id,
-      startTime: show.sessions[0]?.startTime ?? null,
-      stage: show.stage,
-      artists: show.artists,
-      hasSetlist: Boolean(show.setlist),
-    });
+    if (!show.firstSessionDate) continue;
+    const date = new Date(show.firstSessionDate);
+    const key = ymd(date);
+    if (!dayGroups.has(key)) dayGroups.set(key, { date, chips: [] });
+    const group = dayGroups.get(key)!;
+    for (const artist of show.artists) {
+      if (group.chips.some((c) => c.name === artist.canonicalName)) continue;
+      group.chips.push({ name: artist.canonicalName, showId: show.id });
+    }
+  }
+  const dayKeys = Array.from(dayGroups.keys()).sort();
+  const lineupDays: LineupDayData[] = dayKeys.map((k, i) => {
+    const g = dayGroups.get(k)!;
+    return {
+      label: `DAY ${i + 1}`,
+      date: `${g.date.getFullYear()}.${String(g.date.getMonth() + 1).padStart(2, '0')}.${String(g.date.getDate()).padStart(2, '0')}`,
+      dayKr: WEEKDAY_EN[g.date.getDay()]!,
+      chips: g.chips,
+    };
+  });
+  const lineupTotal = new Set<string>();
+  for (const g of dayGroups.values()) {
+    for (const c of g.chips) lineupTotal.add(c.name);
   }
 
   const venueName = festival.locationText ?? festival.venue?.name ?? null;
@@ -154,7 +162,7 @@ export default async function FestivalDetailPage({
           </div>
         </section>
 
-        <LineupSection dayMap={dayMap} totalShows={festival.shows.length} />
+        <LineupSection totalArtists={lineupTotal.size} days={lineupDays} />
       </main>
     </div>
   );
