@@ -4,8 +4,6 @@
 
 import { defaultSearchEngine } from '@mft/search';
 import { prisma } from '@mft/db';
-import { ShowCard } from '../components/ShowCard';
-import { FestivalCard } from '../components/FestivalCard';
 import { HomeHeader } from '../components/home/Header';
 import { HomeHero } from '../components/home/Hero';
 import { HomeSearchBar } from '../components/home/SearchBar';
@@ -21,6 +19,7 @@ import {
 } from '../components/search/ResultsBar';
 import { ArtistSection } from '../components/search/ArtistSection';
 import { EmptyState } from '../components/search/EmptyState';
+import { ShowsGrid, type ShowsGridItem } from '../components/common/ShowsGrid';
 
 export const dynamic = 'force-dynamic';
 
@@ -302,10 +301,52 @@ export default async function HomePage({
   const hasAnyResults =
     visibleArtists.length + visibleUpcoming.length + visiblePast.length > 0;
 
-  function renderPosterCard(c: PosterCardResult) {
-    if (c.kind === 'show') return <ShowCard key={c.key} show={c.data} />;
-    return <FestivalCard key={c.key} festival={c.data} />;
+  // PosterCardResult → ShowsGridItem 매핑 (ShowsGrid가 PosterCard 직접 렌더)
+  function festivalDayLabel(start: Date | null, end: Date | null): string | null {
+    if (!start) return null;
+    if (end && end.getTime() !== start.getTime()) {
+      const diff = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      return `${diff} DAYS`;
+    }
+    return formatWeekdayShort(start);
   }
+
+  function toGridItem(c: PosterCardResult): ShowsGridItem {
+    if (c.kind === 'show') {
+      const d = c.data.firstSessionDate ? new Date(c.data.firstSessionDate) : null;
+      const primaryName = c.data.artists[0]?.canonicalName ?? c.data.title ?? '공연';
+      const secondaryTitle = c.data.artists.length > 0 && c.data.title ? c.data.title : null;
+      return {
+        key: c.key,
+        href: `/shows/${c.data.id}`,
+        type: 'SHOW',
+        imageUrl: c.data.imageUrl,
+        primaryName,
+        secondaryTitle,
+        city: null,
+        venueName: c.data.venue?.name ?? null,
+        date: d,
+        dayLabel: formatWeekdayShort(d),
+      };
+    }
+    const start = c.data.startDate ? new Date(c.data.startDate) : null;
+    const end = c.data.endDate ? new Date(c.data.endDate) : null;
+    return {
+      key: c.key,
+      href: `/festivals/${c.data.id}`,
+      type: 'FESTIVAL',
+      imageUrl: c.data.posterImageUrl,
+      primaryName: c.data.name,
+      secondaryTitle: null,
+      city: null,
+      venueName: c.data.locationText ?? null,
+      date: start,
+      dayLabel: festivalDayLabel(start, end),
+    };
+  }
+
+  const upcomingItems = visibleUpcoming.map(toGridItem);
+  const pastItems = visiblePast.map(toGridItem);
 
   return (
     <div className="min-h-screen bg-ink-900 font-sans text-paper">
@@ -329,51 +370,16 @@ export default async function HomePage({
               }))}
             />
 
-            {visibleUpcoming.length > 0 ? (
-              <section className="mx-auto mt-16 max-w-[1400px] px-6 sm:mt-20 sm:px-10">
-                <div className="hairline mb-10 flex items-end justify-between pb-6">
-                  <div>
-                    <div className="mb-3 text-[11px] uppercase tracking-[0.3em] text-paper/45">
-                      UPCOMING / {new Date().getFullYear()}
-                    </div>
-                    <div className="flex items-baseline gap-3">
-                      <h2 className="text-[28px] font-bold leading-tight tracking-[-0.025em] text-paper sm:text-[34px]">
-                        다가오는 공연
-                      </h2>
-                      <span className="text-[14px] tabular-nums text-paper/40">
-                        {visibleUpcoming.length}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-4">
-                  {visibleUpcoming.map(renderPosterCard)}
-                </div>
-              </section>
-            ) : null}
-
-            {visiblePast.length > 0 ? (
-              <section className="mx-auto mt-16 max-w-[1400px] px-6 sm:mt-20 sm:px-10">
-                <div className="hairline mb-10 flex items-end justify-between pb-6">
-                  <div>
-                    <div className="mb-3 text-[11px] uppercase tracking-[0.3em] text-paper/45">
-                      ARCHIVE
-                    </div>
-                    <div className="flex items-baseline gap-3">
-                      <h2 className="text-[28px] font-bold leading-tight tracking-[-0.025em] text-paper sm:text-[34px]">
-                        지난 공연
-                      </h2>
-                      <span className="text-[14px] tabular-nums text-paper/40">
-                        {visiblePast.length}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-4">
-                  {visiblePast.map(renderPosterCard)}
-                </div>
-              </section>
-            ) : null}
+            <ShowsGrid
+              items={upcomingItems}
+              kicker={`UPCOMING / ${new Date().getFullYear()}`}
+              title="다가오는 공연"
+            />
+            <ShowsGrid
+              items={pastItems}
+              kicker="ARCHIVE"
+              title="지난 공연"
+            />
           </>
         ) : (
           <EmptyState query={trimmed} />
