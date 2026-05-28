@@ -150,7 +150,6 @@ export default async function FestivalDetailPage({
               ticketUrl={festival.ticketUrl}
               ticketLabel={festival.ticketUrl ? deriveTicketLabel(festival.ticketUrl) : null}
               officialUrl={festival.officialUrl}
-              description={festival.description}
             />
           </div>
         </section>

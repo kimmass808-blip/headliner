@@ -1,10 +1,13 @@
 /**
- * Festival 상세 우측 컬럼 — 날짜 키커 / 헤드라인 / 메타 dl / description.
+ * Festival 상세 우측 컬럼 — 날짜 키커 / 헤드라인 / 메타 dl.
  *
  * Show용 InfoColumn과 구조는 유사하지만:
  * - 날짜가 단일 vs 범위
- * - artists 대신 description
+ * - artists 없음 (페스티벌은 lineup이 별도 섹션)
  * - SOURCE 메타 없음 (스키마에 originalPostUrl 없음)
+ *
+ * 노트: 과거 `description` prose 블록은 IG 원문 raw text라 가독성 0 + 메타 row와
+ * 정보 중복이라 제거. 큐레이션된 소개글이 필요해지면 별도 필드로 추가.
  */
 
 import { ArrowUpRight } from '../common/Icons';
@@ -24,13 +27,12 @@ export interface FestivalInfoColumnProps {
   ticketUrl: string | null;
   ticketLabel: string | null;
   officialUrl: string | null;
-  description: string | null;
 }
 
 export function FestivalInfoColumn(props: FestivalInfoColumnProps) {
   const {
     name, dateText, startMonthDay, dayBadge, dayKrRange,
-    venueName, city, ticketUrl, ticketLabel, officialUrl, description,
+    venueName, city, ticketUrl, ticketLabel, officialUrl,
   } = props;
 
   return (
@@ -58,13 +60,6 @@ export function FestivalInfoColumn(props: FestivalInfoColumnProps) {
       <h1 className="mt-5 text-[44px] font-bold leading-[0.95] tracking-[-0.035em] text-paper sm:text-[52px] lg:text-[60px]">
         {name}
       </h1>
-
-      {/* description (있으면 헤드라인 아래 짧게) */}
-      {description ? (
-        <p className="mt-5 max-w-2xl whitespace-pre-line text-[15px] leading-relaxed text-paper/65">
-          {description}
-        </p>
-      ) : null}
 
       {/* 메타 dl */}
       <dl className="hairline-t mt-10">
