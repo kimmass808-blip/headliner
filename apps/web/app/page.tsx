@@ -7,7 +7,6 @@ import { prisma } from '@mft/db';
 import { HomeHeader } from '../components/home/Header';
 import { HomeHero } from '../components/home/Hero';
 import { HomeSearchBar } from '../components/home/SearchBar';
-import { HomeFilterChips } from '../components/home/FilterChips';
 import {
   UpcomingSection,
   type UpcomingItem,
@@ -50,6 +49,7 @@ export default async function HomePage({
     const [upcomingFestivals, upcomingShows] = await Promise.all([
       prisma.festival.findMany({
         where: {
+          status: 'APPROVED', // v7: 사이트 공개 큐레이션은 승인된 행만
           startDate: { gte: startOfToday },
           completeness: { gte: 1 },
         },
@@ -67,6 +67,7 @@ export default async function HomePage({
       }),
       prisma.show.findMany({
         where: {
+          status: 'APPROVED', // v7
           // v6: include shows currently mid-run (lastSessionDate >= today)
           lastSessionDate: { gte: startOfToday },
           completeness: { gte: 1 },
@@ -154,7 +155,6 @@ export default async function HomePage({
             <HomeHero />
             <div className="mt-10 sm:mt-12">
               <HomeSearchBar />
-              <HomeFilterChips />
             </div>
           </section>
           <UpcomingSection items={items} />
