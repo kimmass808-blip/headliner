@@ -4,7 +4,7 @@ import { Suspense } from 'react';
 import { NavigationOverlay } from '../components/NavigationOverlay';
 
 export const metadata: Metadata = {
-  title: 'Headliner — 국내 인디 공연·페스티벌',
+  title: 'HEADLINER — 국내 인디 공연·페스티벌',
   description: '전국 인디 씬 공연·페스티벌을 한 곳에서.',
 };
 

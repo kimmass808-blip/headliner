@@ -35,20 +35,11 @@ export function HomeHeader() {
           HEADLINER
         </Link>
 
-        {/* nav placeholder — 실제 인덱스 페이지는 미구현. 시안 일관성을 위해 표시만. */}
+        {/* nav — 실제 라우팅된 항목만 표시. 인덱스 페이지는 차후 추가. */}
         <nav className="hidden items-center gap-8 text-[13px] tracking-[0.02em] text-paper/70 md:flex">
-          <a href="#" className="transition hover:text-paper">
-            공연
-          </a>
-          <a href="#" className="transition hover:text-paper">
-            페스티벌
-          </a>
-          <a href="#" className="transition hover:text-paper">
-            아티스트
-          </a>
-          <a href="#" className="transition hover:text-paper">
-            아카이브
-          </a>
+          <Link href="/calendar" className="transition hover:text-paper">
+            캘린더
+          </Link>
         </nav>
 
         <div className="flex items-center gap-3">
