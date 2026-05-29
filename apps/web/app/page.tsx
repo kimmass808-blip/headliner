@@ -352,7 +352,7 @@ export default async function HomePage({
     <div className="min-h-screen bg-ink-900 font-sans text-paper">
       <HomeHeader />
 
-      <section className="mx-auto max-w-[1400px] px-6 pt-10 sm:px-10 sm:pt-12">
+      <section id="search" className="mx-auto max-w-[1400px] px-6 pt-10 sm:px-10 sm:pt-12">
         <HomeSearchBar initialQuery={trimmed} />
       </section>
 
