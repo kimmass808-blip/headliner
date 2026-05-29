@@ -177,7 +177,7 @@ export function ScrappedView() {
         <p className="text-[15px] text-paper/55">아직 스크랩한 항목이 없어요.</p>
         <Link
           href="/"
-          className="mt-5 inline-block text-[13px] tracking-[0.02em] text-lime transition hover:opacity-80"
+          className="mt-5 inline-block text-[13px] tracking-[0.02em] text-paper transition hover:opacity-80"
         >
           공연 둘러보기 →
         </Link>

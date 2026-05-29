@@ -53,9 +53,9 @@ function LineupDayHeader({ day }: { day: LineupDayData }) {
         {day.dayKr}
       </span>
       {day.hereArtist ? (
-        <span className="ml-auto inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-lime">
+        <span className="ml-auto inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-paper">
           <span
-            className="inline-block h-1.5 w-1.5 rounded-full bg-lime"
+            className="inline-block h-1.5 w-1.5 rounded-full bg-paper"
             style={{ boxShadow: '0 0 0 2px rgba(212,255,77,0.18)' }}
           />
           이 날 공연
@@ -122,7 +122,7 @@ export function LineupSection({
         {hasHere ? (
           <span className="inline-flex items-center gap-2">
             <span
-              className="inline-block h-1.5 w-1.5 rounded-full bg-lime"
+              className="inline-block h-1.5 w-1.5 rounded-full bg-paper"
               style={{ boxShadow: '0 0 0 2px rgba(212,255,77,0.18)' }}
             />
             THIS SET — 지금 보는 공연

@@ -17,10 +17,9 @@ const config: Config = {
           600: '#262626',
           500: '#3a3a3a',
         },
-        paper: '#fafafa', // 메인 텍스트
+        paper: '#fafafa', // 메인 텍스트 / 모노톤 액센트(하이라이트)
         muted: '#8a8a8a', // 보조 텍스트
         dim: '#5a5a5a',   // 비활성 / 플레이스홀더
-        lime: '#d4ff4d',  // 액센트 (홈 시안 기본)
 
         // 라이트 모드용 (검색 결과·상세·admin 페이지)
         accent: {

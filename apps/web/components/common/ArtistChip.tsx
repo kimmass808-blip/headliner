@@ -20,7 +20,7 @@ const BASE =
 export function ArtistChip({ name, href, variant = 'default' }: ArtistChipProps) {
   const variantCls =
     variant === 'here'
-      ? 'border border-lime/70 bg-lime/[0.06] text-lime'
+      ? 'border border-paper/70 bg-paper/[0.06] text-paper'
       : 'border border-white/15 text-paper/85 hover:border-white/40 hover:text-paper';
 
   const content = (

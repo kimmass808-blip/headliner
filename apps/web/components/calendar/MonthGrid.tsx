@@ -116,7 +116,7 @@ export function MonthGrid({ month, events, today }: MonthGridProps) {
                     </span>
                     {isToday ? (
                       <span
-                        className="inline-block h-1.5 w-1.5 rounded-full bg-lime"
+                        className="inline-block h-1.5 w-1.5 rounded-full bg-paper"
                         style={{ boxShadow: '0 0 0 2px rgba(212,255,77,0.18)' }}
                       />
                     ) : null}

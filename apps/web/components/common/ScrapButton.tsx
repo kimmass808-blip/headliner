@@ -3,7 +3,7 @@
  *
  * 시각: 36×36 원형 (헤더 검색 버튼과 동일 사양).
  *  - 비스크랩: border-white/10, paper/70, hover border-white/30 + paper
- *  - 스크랩: border-lime/70, text-lime, fill=currentColor 채워진 북마크
+ *  - 스크랩: border-paper/70, text-paper, fill=currentColor 채워진 북마크
  *
  * SSR 안전: 초기엔 항상 비스크랩으로 렌더 → mount 후 localStorage 읽어 sync.
  * 멀티탭 동기화: scrapStorage의 subscribe()로 같은 탭 + storage event 모두 커버.
@@ -59,7 +59,7 @@ export function ScrapButton({ kind, id }: ScrapButtonProps) {
       className={
         'flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition ' +
         (scrapped
-          ? 'border-lime/70 text-lime'
+          ? 'border-paper/70 text-paper'
           : 'border-white/10 text-paper/70 hover:border-white/30 hover:text-paper')
       }
     >

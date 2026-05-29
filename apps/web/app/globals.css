@@ -42,7 +42,7 @@
 
   /* Search input caret + placeholder accent */
   input.search-input {
-    caret-color: #d4ff4d;
+    caret-color: #fafafa;
   }
   input.search-input::placeholder {
     color: #5a5a5a;

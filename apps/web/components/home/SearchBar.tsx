@@ -62,8 +62,8 @@ export function HomeSearchBar({ initialQuery = '' }: { initialQuery?: string }) 
 
   return (
     <form id="search" onSubmit={submit} className="mx-auto max-w-3xl">
-      <div className="group relative flex h-[64px] items-center gap-4 rounded-full border border-white/10 bg-ink-850 px-5 transition hover:border-white/25 focus-within:border-lime focus-within:bg-ink-800 sm:h-[72px] sm:px-6">
-        <SearchIcon className="h-5 w-5 shrink-0 text-paper/50 transition group-focus-within:text-lime" />
+      <div className="group relative flex h-[64px] items-center gap-4 rounded-full border border-white/10 bg-ink-850 px-5 transition hover:border-white/25 focus-within:border-paper focus-within:bg-ink-800 sm:h-[72px] sm:px-6">
+        <SearchIcon className="h-5 w-5 shrink-0 text-paper/50 transition group-focus-within:text-paper" />
         <input
           type="search"
           name="q"
