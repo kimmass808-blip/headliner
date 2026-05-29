@@ -40,6 +40,9 @@ export function HomeHeader() {
           <Link href="/calendar" className="transition hover:text-paper">
             캘린더
           </Link>
+          <Link href="/scrapped" className="transition hover:text-paper">
+            스크랩
+          </Link>
         </nav>
 
         <div className="flex items-center gap-3">
