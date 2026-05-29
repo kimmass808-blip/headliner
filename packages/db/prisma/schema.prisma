@@ -8,6 +8,15 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// v7: Human-in-the-loop 검수 파이프라인. ingest로 들어온 모든 신규 row는 PENDING으로
+// 시작하고, /admin/review에서 운영자가 승인/편집/거절. 사이트의 public 쿼리는
+// status = APPROVED만 노출. ReviewLog는 편집·승인 이력을 누적해 학습 신호로 사용.
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model Artist {
   id            String   @id @default(cuid())
   canonicalName String
@@ -118,12 +127,18 @@ model Festival {
   shows          Show[]
   // v5: completeness 모델 일관 적용
   completeness   Int       @default(0) // 0~2 (name·startDate · ≥1 Show)
-  needsReview    Boolean   @default(true)
+  needsReview    Boolean   @default(true) // legacy 필드, status로 점진 대체 중
+  // v7: human-in-the-loop status. 사이트의 public 쿼리는 APPROVED만 노출.
+  status         ReviewStatus @default(PENDING)
+  reviewedAt     DateTime?
+  reviewedBy     String?   // admin user id
+  reviewerNote   String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
   @@index([startDate, endDate])
   @@index([completeness])
+  @@index([status])
 }
 
 // v5: 합병 이력 추적 (Critic MAJOR — AC-5b 보강).
@@ -170,7 +185,12 @@ model Show {
   // v4: completeness 모델
   completeness      Int       @default(0) // 0~3 (date·venue·artists≥1)
   missingFields     String[]              // ['date'|'venue'|'artists'] 부분집합
-  needsReview       Boolean   @default(true) // admin 보완 큐 필터
+  needsReview       Boolean   @default(true) // legacy 필드, status로 점진 대체 중
+  // v7: human-in-the-loop status. 사이트의 public 쿼리는 APPROVED만 노출.
+  status            ReviewStatus @default(PENDING)
+  reviewedAt        DateTime?
+  reviewedBy        String?   // admin user id
+  reviewerNote      String?
   fingerprint       String?   @unique // v4: nullable, completeness=3에 도달하면 생성
   fingerprintInputs Json? // v4: nullable
   duplicateOfShowId String?              // v5: 크롤러 dup 감지 시 winner 가리킴, admin 확인 대기
@@ -185,6 +205,8 @@ model Show {
   @@index([completeness, date]) // v4: 검색 랭킹·관리자 큐 정렬용
   @@index([completeness, firstSessionDate])            // v6: 같은 용도, sessions 기반
   @@index([duplicateOfShowId]) // v5.1: '중복 후보' 탭 쿼리
+  @@index([status])
+  @@index([status, firstSessionDate])
 }
 
 /// v6: Each calendar performance of a named Show.
@@ -256,6 +278,27 @@ model SeedAccount {
   removedAt        DateTime?
 
   @@index([status, lastFetched])
+}
+
+// v7: 운영자가 /admin/review에서 row를 편집·승인·거절할 때 한 행씩 누적.
+// 학습 신호로 사용 — 누적된 row를 보고 스킬의 추출 규칙 보완 (CORRECTIONS.md).
+model ReviewLog {
+  id           String   @id @default(cuid())
+  entityType   String   // 'Show' | 'Festival' | 'Artist' | 'Venue' | 'ShowSession'
+  entityId     String
+  field        String?  // null = 'whole row approve/reject'. 편집이면 'title' | 'sessions[0].startTime' | etc
+  oldValue     Json?
+  newValue     Json?
+  action       String   // 'approve' | 'reject' | 'edit' | 'reopen'
+  source       String   // 'ingest' | 'admin' | 'auto'
+  ingestRunPath String? // 어느 .omc/ingest-log/{ts}.json 에서 들어왔는지 역참조
+  reviewerId   String?
+  reviewerNote String?
+  createdAt    DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@index([action])
 }
 
 model CrawlRun {
