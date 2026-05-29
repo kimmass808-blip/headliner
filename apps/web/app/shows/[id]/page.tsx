@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@mft/db';
 import { HomeHeader } from '../../../components/home/Header';
 import { BackLink } from '../../../components/common/BackLink';
+import { ScrapButton } from '../../../components/common/ScrapButton';
 import { PosterColumn } from '../../../components/show/PosterColumn';
 import { InfoColumn } from '../../../components/show/InfoColumn';
 import { SetlistSection } from '../../../components/show/SetlistSection';
@@ -60,7 +61,7 @@ export default async function ShowDetailPage({
     },
   });
 
-  if (!show) notFound();
+  if (!show || show.status !== 'APPROVED') notFound(); // v7: PENDING/REJECTED은 사이트에서 미노출
 
   // InstagramPost에서 sourceAccount 조회 (있으면 sourceLabel에 사용)
   const igPost = await prisma.instagramPost.findUnique({
@@ -71,7 +72,7 @@ export default async function ShowDetailPage({
   // 페스티벌 소속이면 같은 페스티벌의 라인업 fetch (chip 기반 LineupSection용)
   const festivalLineupShows = show.festivalId
     ? await prisma.show.findMany({
-        where: { festivalId: show.festivalId, duplicateOfShowId: null },
+        where: { status: 'APPROVED', festivalId: show.festivalId, duplicateOfShowId: null }, // v7
         include: { artists: { select: { id: true, canonicalName: true } } },
         orderBy: [{ firstSessionDate: 'asc' }, { setOrder: 'asc' }],
       })
@@ -164,7 +165,10 @@ export default async function ShowDetailPage({
 
       <main>
         <section className="mx-auto max-w-[1400px] px-6 pt-8 sm:px-10 sm:pt-10">
-          <BackLink />
+          <div className="flex items-center justify-between gap-3">
+            <BackLink />
+            <ScrapButton kind="show" id={show.id} />
+          </div>
         </section>
 
         <section className="mx-auto mt-6 max-w-[1400px] px-6 sm:mt-8 sm:px-10">

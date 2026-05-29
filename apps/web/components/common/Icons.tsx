@@ -75,3 +75,36 @@ export function ArrowLeft({ className = '' }: IconProps) {
     </svg>
   );
 }
+
+/** 스크랩(북마크) 빈 상태 — 외곽선만. */
+export function BookmarkOutline({ className = '' }: IconProps) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+
+/** 스크랩(북마크) 채워진 상태 — currentColor로 채움. */
+export function BookmarkFilled({ className = '' }: IconProps) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      stroke="none"
+      aria-hidden="true"
+    >
+      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}

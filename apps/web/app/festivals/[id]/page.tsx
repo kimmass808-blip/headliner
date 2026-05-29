@@ -7,6 +7,7 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@mft/db';
 import { HomeHeader } from '../../../components/home/Header';
 import { BackLink } from '../../../components/common/BackLink';
+import { ScrapButton } from '../../../components/common/ScrapButton';
 import { PosterColumn } from '../../../components/show/PosterColumn';
 import { FestivalInfoColumn } from '../../../components/festival/InfoColumn';
 import {
@@ -56,7 +57,7 @@ export default async function FestivalDetailPage({
     include: {
       venue: true,
       shows: {
-        where: { duplicateOfShowId: null },
+        where: { status: 'APPROVED', duplicateOfShowId: null }, // v7
         include: {
           artists: { select: { id: true, canonicalName: true } },
         },
@@ -65,7 +66,7 @@ export default async function FestivalDetailPage({
     },
   });
 
-  if (!festival) notFound();
+  if (!festival || festival.status !== 'APPROVED') notFound(); // v7: PENDING/REJECTED은 사이트에서 미노출
 
   // 날짜 텍스트·키커
   const startDate = festival.startDate ? new Date(festival.startDate) : null;
@@ -137,7 +138,10 @@ export default async function FestivalDetailPage({
 
       <main>
         <section className="mx-auto max-w-[1400px] px-6 pt-8 sm:px-10 sm:pt-10">
-          <BackLink />
+          <div className="flex items-center justify-between gap-3">
+            <BackLink />
+            <ScrapButton kind="festival" id={festival.id} />
+          </div>
         </section>
 
         <section className="mx-auto mt-6 max-w-[1400px] px-6 sm:mt-8 sm:px-10">
