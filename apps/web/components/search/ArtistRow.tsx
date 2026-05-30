@@ -5,6 +5,7 @@
 
 import Link from 'next/link';
 import { ArrowIcon } from '../common/Icons';
+import { getImageUrl } from '../../lib/imageUrl';
 
 export interface ArtistRowData {
   id: string;
@@ -14,15 +15,17 @@ export interface ArtistRowData {
 }
 
 export function ArtistRow({ artist }: { artist: ArtistRowData }) {
+  // 검색 결과 행 — 72×72 원형 아바타. retina 고려 160px 요청.
+  const src = getImageUrl(artist.imageUrl, { width: 160, quality: 78, resize: 'cover' });
   return (
     <Link href={`/artists/${artist.id}`} className="group block">
       <div className="hairline flex items-center gap-5 py-5 sm:gap-6 sm:py-6">
         {/* avatar */}
         <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full bg-ink-700">
-          {artist.imageUrl ? (
+          {src ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={artist.imageUrl}
+              src={src}
               alt={artist.name}
               className="absolute inset-0 h-full w-full object-cover opacity-90 transition group-hover:opacity-100"
             />

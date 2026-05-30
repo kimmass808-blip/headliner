@@ -6,6 +6,7 @@
  */
 
 import Link from 'next/link';
+import { getImageUrl } from '../../lib/imageUrl';
 
 export interface HomePosterCardProps {
   href: string;
@@ -39,15 +40,17 @@ function splitMonthDay(d: Date | null): [string, string] | null {
 export function PosterCard(props: HomePosterCardProps) {
   const { href, type, imageUrl, primaryName, secondaryTitle, city, venueName, date, dayLabel } = props;
   const md = splitMonthDay(date);
+  // 그리드 카드 — 3:4, 보통 한 컬럼 너비 280~360px. retina 고려해 600px 요청.
+  const src = getImageUrl(imageUrl, { width: 600, quality: 78, resize: 'cover' });
 
   return (
     <Link href={href} className="poster-card group block">
       {/* 3:4 포스터 */}
       <div className="relative aspect-[3/4] overflow-hidden rounded-md bg-ink-700">
-        {imageUrl ? (
+        {src ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={imageUrl}
+            src={src}
             alt=""
             loading="lazy"
             className="poster-img absolute inset-0 h-full w-full object-cover opacity-90 group-hover:opacity-100"

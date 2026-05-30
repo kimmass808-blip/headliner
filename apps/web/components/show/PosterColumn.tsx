@@ -3,6 +3,8 @@
  * 원본 비율 유지(object-contain), max-h 70vh.
  */
 
+import { getImageUrl } from '../../lib/imageUrl';
+
 export interface PosterColumnProps {
   imageUrl: string | null;
   alt: string;
@@ -10,13 +12,15 @@ export interface PosterColumnProps {
 }
 
 export function PosterColumn({ imageUrl, alt, dateLabel }: PosterColumnProps) {
+  // 상세 페이지 — 큰 사이즈로 선명하게. retina 고려해 1200px 요청.
+  const src = getImageUrl(imageUrl, { width: 1200, quality: 82, resize: 'contain' });
   return (
     <div className="w-full">
       <div className="relative flex max-h-[70vh] w-full items-center justify-center overflow-hidden rounded-md bg-ink-800 sm:h-[70vh]">
-        {imageUrl ? (
+        {src ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={imageUrl}
+            src={src}
             alt={alt}
             className="h-full w-full object-contain"
           />
