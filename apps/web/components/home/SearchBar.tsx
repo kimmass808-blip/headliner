@@ -70,7 +70,7 @@ export function HomeSearchBar({ initialQuery = '' }: { initialQuery?: string }) 
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="아티스트, 공연, 페스티벌, 장소를 검색하세요"
-          className="search-input flex-1 bg-transparent text-[15px] text-paper outline-none placeholder:text-dim sm:text-[17px]"
+          className="search-input flex-1 bg-transparent text-[16px] text-paper outline-none placeholder:text-dim sm:text-[17px]"
           autoComplete="off"
         />
         <button
