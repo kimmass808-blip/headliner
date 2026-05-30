@@ -384,6 +384,27 @@ async function upsertShow(
       show.id,
     );
   }
+
+  // v6: the app/search read ShowSession + firstSessionDate/lastSessionDate, not
+  // the deprecated Show.date. Mirror the single payload date into a session row
+  // and refresh the denormalized range so ingested dates are actually visible.
+  if (s.date) {
+    const sessionDate = new Date(s.date);
+    await prisma.showSession.upsert({
+      where: { showId_date: { showId: show.id, date: sessionDate } },
+      create: { showId: show.id, date: sessionDate, startTime: s.startTime ?? null, ticketUrl: s.ticketUrl ?? null },
+      update: { startTime: s.startTime ?? null, ticketUrl: s.ticketUrl ?? null },
+    });
+  }
+  const range = await prisma.showSession.aggregate({
+    where: { showId: show.id },
+    _min: { date: true },
+    _max: { date: true },
+  });
+  await prisma.show.update({
+    where: { id: show.id },
+    data: { firstSessionDate: range._min.date, lastSessionDate: range._max.date },
+  });
   return show.id;
 }
 
