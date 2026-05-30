@@ -8,8 +8,11 @@
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
+    /* iOS 오버스크롤(바운스) 영역까지 다크 유지 */
+    background-color: #0a0a0a;
   }
   body {
+    background-color: #0a0a0a;
     font-family:
       'Pretendard Variable', Pretendard,
       -apple-system, BlinkMacSystemFont, system-ui, Roboto,

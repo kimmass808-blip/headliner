@@ -63,9 +63,9 @@ export function NavigationOverlay() {
     <div
       role="status"
       aria-label="로딩 중"
-      className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-white/40 backdrop-blur-[2px]"
+      className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-ink-900/50 backdrop-blur-[2px]"
     >
-      <span className="inline-block h-10 w-10 animate-spin rounded-full border-2 border-neutral-200 border-t-neutral-900" />
+      <span className="inline-block h-10 w-10 animate-spin rounded-full border-2 border-white/15 border-t-paper" />
     </div>
   );
 }

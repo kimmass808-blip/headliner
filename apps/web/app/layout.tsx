@@ -1,5 +1,5 @@
 import './globals.css';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Suspense } from 'react';
 import { NavigationOverlay } from '../components/NavigationOverlay';
 
@@ -8,10 +8,15 @@ export const metadata: Metadata = {
   description: '전국 인디 씬 공연·페스티벌을 한 곳에서.',
 };
 
+// iOS 상태바·오버스크롤 영역 색을 페이지 배경(ink-900)과 일치시킴
+export const viewport: Viewport = {
+  themeColor: '#0a0a0a',
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">
-      <body className="bg-white text-neutral-900 antialiased">
+      <body className="bg-ink-900 text-paper antialiased">
         <Suspense fallback={null}>
           <NavigationOverlay />
         </Suspense>
