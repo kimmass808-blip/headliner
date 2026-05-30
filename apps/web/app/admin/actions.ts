@@ -11,6 +11,12 @@ import type { Prisma } from '@prisma/client';
 
 const REVIEWER = 'admin';
 
+// Vercel 서버리스 ↔ Supabase 풀러는 쿼리당 왕복 지연이 커서, 기본 5s 인터랙티브
+// 트랜잭션 타임아웃을 쉽게 초과한다(P2028). 왕복이 많은 액션(saveShow 등)을 위해
+// 넉넉히 상향한다. 단순 액션은 아래처럼 배치 트랜잭션($transaction([...]))으로
+// 왕복 자체를 줄여 타임아웃을 회피한다.
+const TX_OPTS = { maxWait: 15_000, timeout: 30_000 } as const;
+
 function revalidateConsole() {
   revalidatePath('/admin');
   revalidatePath('/admin/review');
@@ -29,14 +35,14 @@ function parseYmd(raw: string): Date | null {
 // ───────────────────────── Show ─────────────────────────
 
 export async function approveShow(id: string) {
-  await prisma.$transaction(async (tx) => {
-    const before = await tx.show.findUnique({ where: { id }, select: { status: true } });
-    if (!before) return;
-    await tx.show.update({
+  const before = await prisma.show.findUnique({ where: { id }, select: { status: true } });
+  if (!before) return;
+  await prisma.$transaction([
+    prisma.show.update({
       where: { id },
       data: { status: 'APPROVED', reviewedAt: new Date(), reviewedBy: REVIEWER, reviewerNote: null },
-    });
-    await tx.reviewLog.create({
+    }),
+    prisma.reviewLog.create({
       data: {
         entityType: 'Show',
         entityId: id,
@@ -46,21 +52,21 @@ export async function approveShow(id: string) {
         newValue: { status: 'APPROVED' },
         reviewerId: REVIEWER,
       },
-    });
-  });
+    }),
+  ]);
   revalidateConsole();
 }
 
 export async function rejectShow(id: string, note: string | null) {
   const reason = note?.trim() || null;
-  await prisma.$transaction(async (tx) => {
-    const before = await tx.show.findUnique({ where: { id }, select: { status: true } });
-    if (!before) return;
-    await tx.show.update({
+  const before = await prisma.show.findUnique({ where: { id }, select: { status: true } });
+  if (!before) return;
+  await prisma.$transaction([
+    prisma.show.update({
       where: { id },
       data: { status: 'REJECTED', reviewedAt: new Date(), reviewedBy: REVIEWER, reviewerNote: reason },
-    });
-    await tx.reviewLog.create({
+    }),
+    prisma.reviewLog.create({
       data: {
         entityType: 'Show',
         entityId: id,
@@ -71,17 +77,17 @@ export async function rejectShow(id: string, note: string | null) {
         reviewerId: REVIEWER,
         reviewerNote: reason,
       },
-    });
-  });
+    }),
+  ]);
   revalidateConsole();
 }
 
 /** Hard delete — removes the Show and cascades sessions/setlist. Logs first. */
 export async function deleteShow(id: string) {
-  await prisma.$transaction(async (tx) => {
-    const before = await tx.show.findUnique({ where: { id }, select: { status: true, title: true } });
-    if (!before) return;
-    await tx.reviewLog.create({
+  const before = await prisma.show.findUnique({ where: { id }, select: { status: true, title: true } });
+  if (!before) return;
+  await prisma.$transaction([
+    prisma.reviewLog.create({
       data: {
         entityType: 'Show',
         entityId: id,
@@ -90,9 +96,9 @@ export async function deleteShow(id: string) {
         oldValue: { status: before.status, title: before.title },
         reviewerId: REVIEWER,
       },
-    });
-    await tx.show.delete({ where: { id } });
-  });
+    }),
+    prisma.show.delete({ where: { id } }),
+  ]);
   revalidateConsole();
 }
 
@@ -231,7 +237,7 @@ export async function saveShow(payload: ShowEditPayload) {
         reviewerId: REVIEWER,
       },
     });
-  });
+  }, TX_OPTS);
   revalidateConsole();
 }
 
@@ -243,14 +249,14 @@ export async function saveShowAndApprove(payload: ShowEditPayload) {
 // ─────────────────────── Festival ───────────────────────
 
 export async function approveFestival(id: string) {
-  await prisma.$transaction(async (tx) => {
-    const before = await tx.festival.findUnique({ where: { id }, select: { status: true } });
-    if (!before) return;
-    await tx.festival.update({
+  const before = await prisma.festival.findUnique({ where: { id }, select: { status: true } });
+  if (!before) return;
+  await prisma.$transaction([
+    prisma.festival.update({
       where: { id },
       data: { status: 'APPROVED', reviewedAt: new Date(), reviewedBy: REVIEWER, reviewerNote: null },
-    });
-    await tx.reviewLog.create({
+    }),
+    prisma.reviewLog.create({
       data: {
         entityType: 'Festival',
         entityId: id,
@@ -260,21 +266,21 @@ export async function approveFestival(id: string) {
         newValue: { status: 'APPROVED' },
         reviewerId: REVIEWER,
       },
-    });
-  });
+    }),
+  ]);
   revalidateConsole();
 }
 
 export async function rejectFestival(id: string, note: string | null) {
   const reason = note?.trim() || null;
-  await prisma.$transaction(async (tx) => {
-    const before = await tx.festival.findUnique({ where: { id }, select: { status: true } });
-    if (!before) return;
-    await tx.festival.update({
+  const before = await prisma.festival.findUnique({ where: { id }, select: { status: true } });
+  if (!before) return;
+  await prisma.$transaction([
+    prisma.festival.update({
       where: { id },
       data: { status: 'REJECTED', reviewedAt: new Date(), reviewedBy: REVIEWER, reviewerNote: reason },
-    });
-    await tx.reviewLog.create({
+    }),
+    prisma.reviewLog.create({
       data: {
         entityType: 'Festival',
         entityId: id,
@@ -285,18 +291,18 @@ export async function rejectFestival(id: string, note: string | null) {
         reviewerId: REVIEWER,
         reviewerNote: reason,
       },
-    });
-  });
+    }),
+  ]);
   revalidateConsole();
 }
 
 export async function deleteFestival(id: string) {
-  await prisma.$transaction(async (tx) => {
-    const before = await tx.festival.findUnique({ where: { id }, select: { status: true, name: true } });
-    if (!before) return;
+  const before = await prisma.festival.findUnique({ where: { id }, select: { status: true, name: true } });
+  if (!before) return;
+  await prisma.$transaction([
     // Detach linked shows so the FK constraint doesn't block the delete.
-    await tx.show.updateMany({ where: { festivalId: id }, data: { festivalId: null } });
-    await tx.reviewLog.create({
+    prisma.show.updateMany({ where: { festivalId: id }, data: { festivalId: null } }),
+    prisma.reviewLog.create({
       data: {
         entityType: 'Festival',
         entityId: id,
@@ -305,9 +311,9 @@ export async function deleteFestival(id: string) {
         oldValue: { status: before.status, name: before.name },
         reviewerId: REVIEWER,
       },
-    });
-    await tx.festival.delete({ where: { id } });
-  });
+    }),
+    prisma.festival.delete({ where: { id } }),
+  ]);
   revalidateConsole();
 }
 
@@ -320,22 +326,22 @@ export interface FestivalEditPayload {
 }
 
 export async function saveFestival(payload: FestivalEditPayload) {
-  await prisma.$transaction(async (tx) => {
-    const fest = await tx.festival.findUnique({
-      where: { id: payload.id },
-      select: { id: true, _count: { select: { shows: true } } },
-    });
-    if (!fest) return;
+  const fest = await prisma.festival.findUnique({
+    where: { id: payload.id },
+    select: { id: true, _count: { select: { shows: true } } },
+  });
+  if (!fest) return;
 
-    const startDate = parseYmd(payload.startDate);
-    const endDate = payload.endDate.trim() ? parseYmd(payload.endDate) : null;
-    const locationText = payload.location.trim() || null;
-    const name = payload.name.trim();
+  const startDate = parseYmd(payload.startDate);
+  const endDate = payload.endDate.trim() ? parseYmd(payload.endDate) : null;
+  const locationText = payload.location.trim() || null;
+  const name = payload.name.trim();
 
-    // completeness (0~2): name · startDate · ≥1 linked show.
-    const completeness = (name ? 1 : 0) + (startDate ? 1 : 0) + (fest._count.shows > 0 ? 1 : 0);
+  // completeness (0~2): name · startDate · ≥1 linked show.
+  const completeness = (name ? 1 : 0) + (startDate ? 1 : 0) + (fest._count.shows > 0 ? 1 : 0);
 
-    await tx.festival.update({
+  await prisma.$transaction([
+    prisma.festival.update({
       where: { id: payload.id },
       data: {
         name: name || undefined,
@@ -345,9 +351,8 @@ export async function saveFestival(payload: FestivalEditPayload) {
         completeness,
         needsReview: completeness < 2,
       },
-    });
-
-    await tx.reviewLog.create({
+    }),
+    prisma.reviewLog.create({
       data: {
         entityType: 'Festival',
         entityId: payload.id,
@@ -361,8 +366,8 @@ export async function saveFestival(payload: FestivalEditPayload) {
         } as Prisma.InputJsonValue,
         reviewerId: REVIEWER,
       },
-    });
-  });
+    }),
+  ]);
   revalidateConsole();
 }
 
