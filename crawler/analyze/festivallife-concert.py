@@ -31,8 +31,25 @@ DATE_PAT = re.compile(r'(\d{4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일')
 TIME_PAT = re.compile(r'(오전|오후)\s*(\d{1,2})\s*시(?:\s*(\d{1,2})\s*분)?')
 
 
+def decode_entities(s: str) -> str:
+    if not s:
+        return ''
+    out = s
+    for _ in range(3):
+        before = out
+        out = (out.replace('&nbsp;', ' ')
+                  .replace('&#039;', "'").replace('&#39;', "'")
+                  .replace('&quot;', '"')
+                  .replace('&lt;', '<').replace('&gt;', '>')
+                  .replace('&amp;', '&')
+                  .replace('&lsquo;', "'").replace('&rsquo;', "'"))
+        if out == before:
+            break
+    return out
+
+
 def clean_title(t: str) -> str:
-    return ' '.join(TITLE_SUFFIX.sub('', t).split())
+    return ' '.join(TITLE_SUFFIX.sub('', decode_entities(t)).split())
 
 
 def parse_date_time(desc: str) -> tuple[str | None, str | None]:
@@ -80,7 +97,7 @@ def main():
         idx = p.stem
         raw_title = meta(html, 'og:title') or ''
         title = clean_title(raw_title)
-        desc = meta(html, 'og:description') or meta(html, 'description') or ''
+        desc = decode_entities(meta(html, 'og:description') or meta(html, 'description') or '')
         img = meta(html, 'og:image')
         date_iso, time_str = parse_date_time(desc)
         venue = parse_venue(desc)

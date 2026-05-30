@@ -32,14 +32,19 @@ OUT = DUMP / 'candidates.json'
 def strip_html_entities(s: str) -> str:
     if not s:
         return ''
-    return (
-        s.replace('&nbsp;', ' ')
-        .replace('&amp;', '&')
-        .replace('&lsquo;', "'")
-        .replace('&rsquo;', "'")
-        .replace('&quot;', '"')
-        .replace('﻿', '')
-    )
+    out = s
+    for _ in range(3):
+        before = out
+        out = (out.replace('&nbsp;', ' ')
+                  .replace('&#039;', "'").replace('&#39;', "'")
+                  .replace('&quot;', '"')
+                  .replace('&lt;', '<').replace('&gt;', '>')
+                  .replace('&amp;', '&')
+                  .replace('&lsquo;', "'").replace('&rsquo;', "'")
+                  .replace('﻿', ''))
+        if out == before:
+            break
+    return out
 
 
 # ----- date parsing -----
