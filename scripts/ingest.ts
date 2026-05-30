@@ -14,7 +14,7 @@
  *   pnpm tsx scripts/ingest.ts --dry-run payload.json
  */
 
-import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { readFileSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { z } from 'zod';
 import { PrismaClient } from '@prisma/client';
@@ -27,6 +27,31 @@ if (!directUrl) {
   process.exit(1);
 }
 const prisma = new PrismaClient({ datasources: { db: { url: directUrl } } });
+
+// ---------- correction map (review-learn 산출물) ----------
+// /admin/review 에서 누적된 사람 교정을 결정적으로 적용한다. 키는 canonicalize
+// key, 값은 교정된 표시명. ingest 가 뽑은 이름이 이 맵에 걸리면 강제 치환한다.
+type CorrectionEntry = { to: string; count: number };
+const CORRECTION_MAP: { artists: Record<string, CorrectionEntry>; venues: Record<string, CorrectionEntry> } = (() => {
+  const p = resolve(process.cwd(), '.omc', 'skills', 'ingest-show', 'correction-map.json');
+  if (!existsSync(p)) return { artists: {}, venues: {} };
+  try {
+    const m = JSON.parse(readFileSync(p, 'utf-8'));
+    return { artists: m.artists ?? {}, venues: m.venues ?? {} };
+  } catch {
+    return { artists: {}, venues: {} };
+  }
+})();
+
+/** 교정 맵을 적용해 이름을 치환한다(걸리면 corrected display, 아니면 원본). */
+function applyArtistCorrection(name: string): string {
+  const hit = CORRECTION_MAP.artists[canonicalizeArtistName(name).key];
+  return hit?.to ?? name;
+}
+function applyVenueCorrection(text: string): string {
+  const hit = CORRECTION_MAP.venues[canonicalizeVenueText(text).key];
+  return hit?.to ?? text;
+}
 
 // ---------- payload schema ----------
 
@@ -218,7 +243,9 @@ async function upsertFestival(f: FestivalInput, stats: RunStats): Promise<string
   return created.id;
 }
 
-async function findOrCreateVenue(text: string, stats: RunStats): Promise<string | null> {
+async function findOrCreateVenue(rawText: string, stats: RunStats): Promise<string | null> {
+  const text = applyVenueCorrection(rawText);
+  if (text !== rawText) stats.warnings.push(`venue correction-map: "${rawText}" → "${text}"`);
   const canon = canonicalizeVenueText(text);
   if (!canon.key) return null;
   if (DRY) return null;
@@ -234,7 +261,14 @@ async function findOrCreateVenue(text: string, stats: RunStats): Promise<string 
   return created.id;
 }
 
-async function findOrCreateArtist(input: ArtistInput, stats: RunStats): Promise<string | null> {
+async function findOrCreateArtist(rawInput: ArtistInput, stats: RunStats): Promise<string | null> {
+  const correctedName = applyArtistCorrection(rawInput.name);
+  // 교정 시 원래 표기는 alias 로 보존해 다음 매칭에도 도움이 되게 한다.
+  const input: ArtistInput =
+    correctedName !== rawInput.name
+      ? { ...rawInput, name: correctedName, aliases: [...(rawInput.aliases ?? []), rawInput.name] }
+      : rawInput;
+  if (correctedName !== rawInput.name) stats.warnings.push(`artist correction-map: "${rawInput.name}" → "${correctedName}"`);
   const canon = canonicalizeArtistName(input.name);
   if (!canon.key) return null;
   if (DRY) return null;

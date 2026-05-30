@@ -121,9 +121,23 @@ export async function saveShow(payload: ShowEditPayload) {
   await prisma.$transaction(async (tx) => {
     const show = await tx.show.findUnique({
       where: { id: payload.id },
-      include: { artists: { select: { id: true } }, sessions: true },
+      include: {
+        artists: { select: { id: true, canonicalName: true } },
+        venue: { select: { name: true } },
+        sessions: { orderBy: { date: 'asc' } },
+      },
     });
     if (!show) return;
+
+    // Snapshot the pre-edit state in the same shape as newValue, so the
+    // review-learn step can diff WRONG(ingest output)→RIGHT(human correction).
+    const oldValue = {
+      title: show.title ?? null,
+      artists: show.artists.map((a) => a.canonicalName),
+      venue: show.venue?.name ?? null,
+      sessions: show.sessions.map((x) => x.date.toISOString().slice(0, 10)),
+      festivalId: show.festivalId,
+    } as Prisma.InputJsonValue;
 
     // 1) Artists — canonicalize + find-or-create, then `set` the relation.
     const artistIds: string[] = [];
@@ -227,6 +241,7 @@ export async function saveShow(payload: ShowEditPayload) {
         entityId: payload.id,
         action: 'edit',
         source: 'admin',
+        oldValue,
         newValue: {
           title: payload.title.trim() || null,
           artists: payload.artists,
@@ -328,9 +343,23 @@ export interface FestivalEditPayload {
 export async function saveFestival(payload: FestivalEditPayload) {
   const fest = await prisma.festival.findUnique({
     where: { id: payload.id },
-    select: { id: true, _count: { select: { shows: true } } },
+    select: {
+      id: true,
+      name: true,
+      startDate: true,
+      endDate: true,
+      locationText: true,
+      _count: { select: { shows: true } },
+    },
   });
   if (!fest) return;
+
+  const oldValue = {
+    name: fest.name ?? null,
+    startDate: fest.startDate ? fest.startDate.toISOString().slice(0, 10) : null,
+    endDate: fest.endDate ? fest.endDate.toISOString().slice(0, 10) : null,
+    location: fest.locationText ?? null,
+  } as Prisma.InputJsonValue;
 
   const startDate = parseYmd(payload.startDate);
   const endDate = payload.endDate.trim() ? parseYmd(payload.endDate) : null;
@@ -358,6 +387,7 @@ export async function saveFestival(payload: FestivalEditPayload) {
         entityId: payload.id,
         action: 'edit',
         source: 'admin',
+        oldValue,
         newValue: {
           name,
           startDate: startDate ? startDate.toISOString().slice(0, 10) : null,
