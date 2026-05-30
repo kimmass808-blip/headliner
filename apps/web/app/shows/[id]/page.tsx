@@ -18,7 +18,7 @@ import {
 } from '../../../components/common/LineupSection';
 import { ymd } from '../../../lib/calendar';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 3600;
 
 const WEEKDAY_EN = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'] as const;
 const WEEKDAY_KR = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'] as const;

@@ -49,7 +49,7 @@ export default async function CalendarPage({
     prisma.showSession.findMany({
       where: {
         date: { gte: rangeStart, lte: rangeEnd },
-        show: { duplicateOfShowId: null, festivalId: null },
+        show: { status: 'APPROVED', duplicateOfShowId: null, festivalId: null }, // v7
       },
       include: {
         show: {
@@ -66,6 +66,7 @@ export default async function CalendarPage({
     }),
     prisma.festival.findMany({
       where: {
+        status: 'APPROVED', // v7
         AND: [
           { OR: [{ startDate: { lte: rangeEnd } }, { startDate: null }] },
           { OR: [{ endDate: { gte: rangeStart } }, { endDate: null }] },

@@ -14,7 +14,7 @@ import { HeroSection } from '../../../components/artist/HeroSection';
 import { BioSection } from '../../../components/artist/BioSection';
 import { formatWeekdayShort } from '../../../components/home/PosterCard';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 3600;
 
 const KNOWN_PLATFORMS: PlatformKind[] = [
   'instagram', 'website', 'youtube', 'spotify', 'bandcamp', 'twitter',
