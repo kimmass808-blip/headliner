@@ -64,7 +64,7 @@ export default async function ArtistDetailPage({
     where: { id },
     include: {
       shows: {
-        where: { duplicateOfShowId: null },
+        where: { status: 'APPROVED', duplicateOfShowId: null }, // v7: PENDING/REJECTED은 사이트에서 미노출
         // v6: sort by firstSessionDate (denormalized from sessions[0].date)
         orderBy: [{ firstSessionDate: 'asc' }],
         include: {
