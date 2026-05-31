@@ -43,7 +43,7 @@ export function PosterCard(props: HomePosterCardProps) {
   // 올해와 다른 년도일 때만 노출(대부분 올해라 평소엔 생략, 연말~연초 내년 공연만 구분).
   const year = date && date.getFullYear() !== new Date().getFullYear() ? date.getFullYear() : null;
   // 그리드 카드 — 3:4, 보통 한 컬럼 너비 280~360px. retina 고려해 600px 요청.
-  const src = getImageUrl(imageUrl, { width: 600, quality: 78, resize: 'cover' });
+  const src = getImageUrl(imageUrl, { width: 600, quality: 78 });
   // 반응형: 모바일 2열(~45vw) ~ 데스크탑 다열(~320px). 화면/DPR에 맞춰 선택.
   const srcSet = getImageSrcSet(imageUrl, [300, 450, 600], { quality: 78 });
 

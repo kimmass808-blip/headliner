@@ -6,7 +6,7 @@ import { getImageUrl, getImageSrcSet } from '../../lib/imageUrl';
 
 export function ArtistPortrait({ photo, name }: { photo: string | null; name: string }) {
   // 상세 페이지의 정사각 프로필. 보통 한 컬럼 폭 280~320px → retina 고려 600px.
-  const src = getImageUrl(photo, { width: 600, quality: 80, resize: 'cover' });
+  const src = getImageUrl(photo, { width: 600, quality: 80 });
   const srcSet = getImageSrcSet(photo, [300, 450, 600], { quality: 80 });
   return (
     <div className="w-full">

@@ -68,7 +68,7 @@ export function FestivalInfoSection({ posts }: { posts: FestivalInfoPostData[] }
             <div className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
               {g.items.map((p) => {
                 const cover = p.imageUrls[0]
-                  ? getImageUrl(p.imageUrls[0], { width: 600, quality: 80, resize: 'cover' })
+                  ? getImageUrl(p.imageUrls[0], { width: 600, quality: 80 })
                   : null;
                 const caption = p.title || CATEGORY_LABEL[p.category];
                 return (

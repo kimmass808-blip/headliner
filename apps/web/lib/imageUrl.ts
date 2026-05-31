@@ -13,6 +13,12 @@
  * - `width` 만 지정 시 비율 유지하며 다운스케일.
  * - `quality` 미지정 시 Supabase 기본값(80) 사용.
  *
+ * ⚠️ Supabase render의 `resize=cover|fill`은 width·height **둘 다** 있을 때만 의미가 있다.
+ *    한쪽 치수만 주면 나머지 변은 원본 크기로 남아, cover가 이미지를 다운스케일하지 않고
+ *    **세로/가로 띠로 크롭**해버린다(예: 1080×1080 + width=600 → 600×1080).
+ *    그래서 단일 치수 요청에서는 항상 `contain`(비율 보존 축소)으로 강제한다.
+ *    카드 프레임에 맞춘 시각적 크롭은 CSS object-fit이 담당.
+ *
  * 참고: 동적 변환은 Pro 플랜에서 안정 동작. Free 플랜에선 호출 제한이 있을 수 있다.
  * 그 경우 path 그대로 두면 원본 webp (≤1440px)가 그대로 서빙된다.
  */
@@ -36,7 +42,10 @@ export function getImageUrl(url: string | null | undefined, opts: ImageUrlOpts =
   if (opts.width) params.set('width', String(opts.width));
   if (opts.height) params.set('height', String(opts.height));
   if (opts.quality !== undefined) params.set('quality', String(opts.quality));
-  if (opts.resize) params.set('resize', opts.resize);
+  // 단일 치수 요청에서 cover/fill은 이미지를 띠로 크롭하므로 contain으로 강제(비율 보존).
+  const singleDim = !!opts.width !== !!opts.height;
+  const resize = singleDim ? 'contain' : opts.resize;
+  if (resize) params.set('resize', resize);
   const qs = params.toString();
   return qs ? `${transformed}?${qs}` : transformed;
 }
