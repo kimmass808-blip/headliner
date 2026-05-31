@@ -51,7 +51,8 @@ _thinking/
 .omc/ingest-log/
 .omc/ingest-watchlist.json
 .omc/image-migration/
-.omc/skills/
+# .omc/skills/ 의 SKILL.md(추출 계약 문서)는 버전관리. 단 학습 누적 데이터만 ignore.
+.omc/skills/**/correction-map.json
 
 # Turbo (V2 예약)
 .turbo/
