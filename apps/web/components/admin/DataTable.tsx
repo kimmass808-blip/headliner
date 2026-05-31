@@ -180,8 +180,8 @@ export function DataTable({
   );
 
   return (
-    <div className="flex-1 overflow-hidden">
-      <div className="mx-auto flex h-full min-h-0 max-w-[1180px] flex-col px-8 py-6">
+    <div className="flex h-full min-h-0 flex-1 overflow-hidden">
+      <div className="mx-auto flex h-full min-h-0 w-full min-w-0 max-w-[1180px] flex-1 flex-col px-8 py-6">
         <div className="mb-4 flex items-end justify-between">
           <div>
             <h1 className="text-[22px] font-bold tracking-tight text-zinc-900">데이터 관리</h1>
