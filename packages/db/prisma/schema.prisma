@@ -125,6 +125,7 @@ model Festival {
   posterImageUrl String?
   description    String?
   shows          Show[]
+  infoPosts      FestivalInfo[]
   // v5: completeness 모델 일관 적용
   completeness   Int       @default(0) // 0~2 (name·startDate · ≥1 Show)
   needsReview    Boolean   @default(true) // legacy 필드, status로 점진 대체 중
@@ -299,6 +300,42 @@ model ReviewLog {
   @@index([entityType, entityId])
   @@index([createdAt])
   @@index([action])
+}
+
+// v8: 페스티벌 관람 정보(사이트맵·타임테이블·교통·규정·FAQ·MD/푸드·편의시설 등).
+// IG 관람정보 게시물 1건 = FestivalInfo 1행. imageUrls는 캐러셀 슬라이드 N장.
+// ingest가 PENDING으로 생성, /admin/review에서 카테고리 보정·승인. 공개는 APPROVED만.
+enum FestivalInfoCategory {
+  MAP        // 사이트맵 / 배치도 / 부스맵
+  TIMETABLE  // 타임테이블 / 러닝오더
+  ACCESS     // 교통 / 주차 / 셔틀
+  RULES      // 반입금지 / 입장 / 유의사항
+  FAQ        // 자주 묻는 질문
+  GOODS      // MD/굿즈 판매, 푸드트럭·F&B 라인업
+  AMENITY    // 편의시설 / 물품보관 / 우천대비
+  NOTICE     // 기타 관람 공지
+}
+
+model FestivalInfo {
+  id            String   @id @default(cuid())
+  festivalId    String
+  festival      Festival @relation(fields: [festivalId], references: [id], onDelete: Cascade)
+  category      FestivalInfoCategory
+  title         String?
+  imageUrls     String[]            // 캐러셀 슬라이드 N장
+  bodyText      String?  @db.Text
+  sourcePostUrl String   @unique    // 1 IG post → 1 InfoPost (멱등 키)
+  postedAt      DateTime?
+  order         Int      @default(0)
+  status        ReviewStatus @default(PENDING)
+  reviewedAt    DateTime?
+  reviewedBy    String?
+  reviewerNote  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([festivalId, category])
+  @@index([status])
 }
 
 model CrawlRun {

@@ -130,12 +130,13 @@ export type Normalized = {
   origBytes: number;
 };
 
-export async function normalize(input: Buffer): Promise<Normalized> {
+export async function normalize(input: Buffer, opts?: { maxWidth?: number }): Promise<Normalized> {
+  const maxWidth = opts?.maxWidth ?? MAX_WIDTH;
   const meta = await sharp(input).metadata();
   // Treat animated GIFs by taking just the first frame (webp keeps it static).
   let pipeline = sharp(input, { animated: false }).rotate();
-  if (meta.width && meta.width > MAX_WIDTH) {
-    pipeline = pipeline.resize({ width: MAX_WIDTH, withoutEnlargement: true });
+  if (meta.width && meta.width > maxWidth) {
+    pipeline = pipeline.resize({ width: maxWidth, withoutEnlargement: true });
   }
   const buffer = await pipeline.webp({ quality: WEBP_QUALITY, effort: 4 }).toBuffer();
   const outMeta = await sharp(buffer).metadata();
@@ -175,9 +176,10 @@ export async function upload(n: Normalized): Promise<string> {
  */
 export async function pipeImage(
   urlOrPath: string,
+  opts?: { maxWidth?: number },
 ): Promise<{ publicUrl: string; normalized: Normalized }> {
   const input = await fetchAsBuffer(urlOrPath);
-  const normalized = await normalize(input);
+  const normalized = await normalize(input, opts);
   const publicUrl = await upload(normalized);
   return { publicUrl, normalized };
 }

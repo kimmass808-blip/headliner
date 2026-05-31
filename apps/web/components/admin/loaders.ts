@@ -1,5 +1,5 @@
 import { prisma } from '@mft/db';
-import type { FestivalOption, FestivalVM, ItemVM, ShowVM } from './types';
+import type { FestivalInfoVM, FestivalOption, FestivalVM, ItemVM, ShowVM } from './types';
 
 const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
@@ -110,6 +110,43 @@ export async function loadPendingFestivals(): Promise<FestivalVM[]> {
     select: festSelect,
   });
   return rows.map(toFestVM);
+}
+
+const infoSelect = {
+  id: true,
+  status: true,
+  category: true,
+  title: true,
+  imageUrls: true,
+  sourcePostUrl: true,
+  postedAt: true,
+  festival: { select: { name: true } },
+} as const;
+
+type InfoRow = Awaited<ReturnType<typeof prisma.festivalInfo.findFirst<{ select: typeof infoSelect }>>>;
+
+function toFestivalInfoVM(fi: NonNullable<InfoRow>): FestivalInfoVM {
+  return {
+    id: fi.id,
+    type: 'FESTIVAL_INFO',
+    status: fi.status as FestivalInfoVM['status'],
+    festivalName: fi.festival?.name ?? '',
+    category: fi.category as FestivalInfoVM['category'],
+    title: fi.title ?? '',
+    imageUrls: fi.imageUrls,
+    sourcePostUrl: fi.sourcePostUrl,
+    postedAt: ymd(fi.postedAt),
+  };
+}
+
+export async function loadPendingFestivalInfos(): Promise<FestivalInfoVM[]> {
+  const rows = await prisma.festivalInfo.findMany({
+    where: { status: 'PENDING' },
+    orderBy: { createdAt: 'desc' },
+    take: 200,
+    select: infoSelect,
+  });
+  return rows.map(toFestivalInfoVM);
 }
 
 /** APPROVED + REJECTED shows and festivals, merged for the data-management table. */

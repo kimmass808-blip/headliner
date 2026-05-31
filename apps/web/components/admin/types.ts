@@ -51,6 +51,32 @@ export interface FestivalVM {
   rejectReason?: string | null;
 }
 
+export type FestivalInfoCategory =
+  | 'MAP'
+  | 'TIMETABLE'
+  | 'ACCESS'
+  | 'RULES'
+  | 'FAQ'
+  | 'GOODS'
+  | 'AMENITY'
+  | 'NOTICE';
+
+export interface FestivalInfoVM {
+  id: string;
+  type: 'FESTIVAL_INFO';
+  status: ReviewStatus;
+  festivalName: string;
+  category: FestivalInfoCategory;
+  title: string;
+  imageUrls: string[];
+  sourcePostUrl: string;
+  postedAt: string;
+  completeness?: number;
+  rejectReason?: string;
+}
+
+// ItemVM은 EditDrawer/키보드 내비게이션이 다루는 Show/Festival 한정 유니온.
+// FestivalInfo는 카테고리 보정만 필요하므로 별도 리스트로 취급한다.
 export type ItemVM = ShowVM | FestivalVM;
 
 export interface FestivalOption {

@@ -2,7 +2,8 @@
  * Headliner ingest entrypoint.
  *
  * Reads a JSON payload (stdin or file arg) describing one IG/web visit and
- * the entities it should produce. Upserts Festival/Show/Artist/Venue rows,
+ * the entities it should produce. Upserts Festival/Show/Artist/Venue rows and
+ * FestivalInfo(관람 정보: 사이트맵·타임테이블·교통·규정·FAQ·MD/푸드·편의시설 등) rows,
  * uploads images to Supabase Storage, refreshes the search index, and writes
  * an audit log.
  *
@@ -61,9 +62,24 @@ const ArtistInput = z.object({
   aliases: z.array(z.string()).optional(),
 });
 
+const SessionInput = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  startTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  endTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  ticketUrl: z.string().url().optional(),
+  ticketOpenAt: z.string().optional(), // ISO datetime
+  capacity: z.number().int().optional(),
+  notes: z.string().optional(),
+});
+
 const ShowEntity = z.object({
   kind: z.literal('show'),
   title: z.string().optional(),
+  // v6: one element per calendar performance. Multi-day same-name runs MUST be
+  // a single show entity with N sessions (see SKILL.md dedupe rules).
+  sessions: z.array(SessionInput).optional(),
+  // DEPRECATED legacy top-level fields. Auto-promoted to a single sessions[0]
+  // with a (deprecated) warning. Kept so old saved payloads keep loading.
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   startTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   venueText: z.string().optional(),
@@ -90,7 +106,19 @@ const FestivalEntity = z.object({
   igHandle: z.string().optional(),
 });
 
-const Entity = z.discriminatedUnion('kind', [ShowEntity, FestivalEntity]);
+const FestivalInfoEntity = z.object({
+  kind: z.literal('festival_info'),
+  festivalKey: z.string(),
+  category: z.enum(['MAP', 'TIMETABLE', 'ACCESS', 'RULES', 'FAQ', 'GOODS', 'AMENITY', 'NOTICE']),
+  title: z.string().optional(),
+  sourcePostUrl: z.string().url().optional(),
+  imageSources: z.array(z.string()).default([]),
+  bodyText: z.string().optional(),
+  postedAt: z.string().optional(),
+  order: z.number().int().optional(),
+});
+
+const Entity = z.discriminatedUnion('kind', [ShowEntity, FestivalEntity, FestivalInfoEntity]);
 
 const Source = z.object({
   type: z.enum(['ig_post', 'web_page', 'manual']).default('ig_post'),
@@ -110,6 +138,7 @@ const Payload = z.object({
 type Payload = z.infer<typeof Payload>;
 type ShowInput = z.infer<typeof ShowEntity>;
 type FestivalInput = z.infer<typeof FestivalEntity>;
+type FestivalInfoInput = z.infer<typeof FestivalInfoEntity>;
 
 // ---------- key helpers (shared with dedupe scripts) ----------
 
@@ -152,6 +181,7 @@ type RunStats = {
   shows: { inserted: number; updated: number };
   artists: { found: number; created: number };
   venues: { found: number; created: number };
+  festivalInfo: { inserted: number; updated: number };
   imagesUploaded: number;
   imageBytesIn: number;
   imageBytesOut: number;
@@ -174,6 +204,33 @@ async function maybeUploadImage(srcOpt: string | undefined, stats: RunStats): Pr
     stats.warnings.push(`image upload failed for ${srcOpt}: ${e instanceof Error ? e.message : e}`);
     return null;
   }
+}
+
+// 캐러셀 등 다중 이미지를 순서대로 업로드하고 성공한 publicUrl 배열을 반환.
+// 관람 정보(사이트맵·타임테이블)는 밀도가 높아 maxWidth를 크게(2000) 쓴다.
+async function maybeUploadImages(
+  srcs: string[],
+  stats: RunStats,
+  opts?: { maxWidth?: number },
+): Promise<string[]> {
+  if (DRY) {
+    for (const s of srcs) if (s) stats.warnings.push(`(dry-run) would upload image: ${s}`);
+    return [];
+  }
+  const urls: string[] = [];
+  for (const src of srcs) {
+    if (!src) continue;
+    try {
+      const { publicUrl, normalized } = await pipeImage(src, opts);
+      stats.imagesUploaded++;
+      stats.imageBytesIn += normalized.origBytes;
+      stats.imageBytesOut += normalized.buffer.length;
+      urls.push(publicUrl);
+    } catch (e) {
+      stats.warnings.push(`image upload failed for ${src}: ${e instanceof Error ? e.message : e}`);
+    }
+  }
+  return urls;
 }
 
 async function upsertFestival(f: FestivalInput, stats: RunStats): Promise<string | null> {
@@ -334,18 +391,41 @@ async function upsertShow(
 
   const imageUrl = await maybeUploadImage(s.imageSource, stats);
 
+  // v6: normalize the show's calendar into a session list. Prefer sessions[];
+  // fall back to the deprecated top-level date/startTime/ticketUrl (promoted to
+  // a single session, with a warning). Sorted so sessions[0] is the earliest.
+  type NormSession = {
+    date: string; startTime?: string; endTime?: string;
+    ticketUrl?: string; ticketOpenAt?: string; capacity?: number; notes?: string;
+  };
+  let sessionList: NormSession[];
+  if (s.sessions && s.sessions.length > 0) {
+    sessionList = s.sessions;
+    if (s.date || s.startTime) {
+      stats.warnings.push(`show "${s.title ?? url}" has both sessions[] and deprecated top-level date/startTime; ignoring the top-level fields`);
+    }
+  } else if (s.date) {
+    stats.warnings.push(`(deprecated) show "${s.title ?? url}" used top-level date/startTime; promote to sessions[] in new payloads`);
+    sessionList = [{ date: s.date, startTime: s.startTime, ticketUrl: s.ticketUrl }];
+  } else {
+    sessionList = [];
+  }
+  const sortedSessions = [...sessionList].sort((a, b) => a.date.localeCompare(b.date));
+  const firstSession = sortedSessions[0];
+
   const missing: string[] = [];
-  if (!s.date) missing.push('date');
+  if (sortedSessions.length === 0) missing.push('date');
   if (!venueId) missing.push('venue');
   if (artistIds.length === 0) missing.push('artists');
   let comp = 0;
-  if (s.date) comp++;
+  if (sortedSessions.length > 0) comp++;
   if (venueId) comp++;
   if (artistIds.length > 0) comp++;
 
   const data = {
-    date: s.date ? new Date(s.date) : null,
-    startTime: s.startTime ?? null,
+    // DEPRECATED columns kept in sync with the earliest session for back-compat.
+    date: firstSession ? new Date(firstSession.date) : null,
+    startTime: firstSession?.startTime ?? null,
     venueId,
     title: s.title ?? null,
     originalPostUrl: url,
@@ -386,14 +466,24 @@ async function upsertShow(
   }
 
   // v6: the app/search read ShowSession + firstSessionDate/lastSessionDate, not
-  // the deprecated Show.date. Mirror the single payload date into a session row
-  // and refresh the denormalized range so ingested dates are actually visible.
-  if (s.date) {
-    const sessionDate = new Date(s.date);
+  // the deprecated Show.date. Upsert every session by (showId, date) so a
+  // multi-day show lands as one Show with N sessions. Non-destructive: sessions
+  // in the DB but absent from the payload are left alone (operator deletes
+  // cancelled sessions manually -- see SKILL.md).
+  for (const sess of sortedSessions) {
+    const d = new Date(sess.date);
+    const sessData = {
+      startTime: sess.startTime ?? null,
+      endTime: sess.endTime ?? null,
+      ticketUrl: sess.ticketUrl ?? null,
+      ticketOpenAt: sess.ticketOpenAt ? new Date(sess.ticketOpenAt) : null,
+      capacity: sess.capacity ?? null,
+      notes: sess.notes ?? null,
+    };
     await prisma.showSession.upsert({
-      where: { showId_date: { showId: show.id, date: sessionDate } },
-      create: { showId: show.id, date: sessionDate, startTime: s.startTime ?? null, ticketUrl: s.ticketUrl ?? null },
-      update: { startTime: s.startTime ?? null, ticketUrl: s.ticketUrl ?? null },
+      where: { showId_date: { showId: show.id, date: d } },
+      create: { showId: show.id, date: d, ...sessData },
+      update: sessData,
     });
   }
   const range = await prisma.showSession.aggregate({
@@ -406,6 +496,59 @@ async function upsertShow(
     data: { firstSessionDate: range._min.date, lastSessionDate: range._max.date },
   });
   return show.id;
+}
+
+async function upsertFestivalInfo(
+  fi: FestivalInfoInput,
+  source: Payload['source'],
+  stats: RunStats,
+): Promise<string | null> {
+  // festivalKey로 페스티벌 해석 (show와 동일한 canonicalKey 규칙).
+  const festival = await prisma.festival.findUnique({ where: { canonicalKey: fi.festivalKey } });
+  if (!festival) {
+    stats.warnings.push(`festival_info: festivalKey "${fi.festivalKey}" not found; skipped`);
+    return null;
+  }
+  // sourcePostUrl은 @unique 멱등 키 — 명시값 우선, 없으면 source + #info-<category>로 안정화.
+  const sourcePostUrl = fi.sourcePostUrl ?? originalPostUrl(source, `info-${fi.category.toLowerCase()}`);
+  // 관람정보 이미지(사이트맵·타임테이블)는 디테일 보존 위해 2000px.
+  const imageUrls = await maybeUploadImages(fi.imageSources, stats, { maxWidth: 2000 });
+
+  if (DRY) {
+    stats.warnings.push(`(dry-run) would upsert festival_info ${sourcePostUrl}`);
+    return null;
+  }
+
+  const existing = await prisma.festivalInfo.findUnique({ where: { sourcePostUrl } });
+  if (existing) {
+    const patch: any = {
+      festivalId: festival.id,
+      category: fi.category,
+      order: fi.order ?? 0,
+    };
+    if (fi.title !== undefined) patch.title = fi.title;
+    if (fi.bodyText !== undefined) patch.bodyText = fi.bodyText;
+    if (fi.postedAt) patch.postedAt = new Date(fi.postedAt);
+    // 이미지는 새로 업로드된 경우에만 덮어쓴다(DRY/빈 경우 기존 보존).
+    if (imageUrls.length) patch.imageUrls = imageUrls;
+    await prisma.festivalInfo.update({ where: { id: existing.id }, data: patch });
+    stats.festivalInfo.updated++;
+    return existing.id;
+  }
+  const created = await prisma.festivalInfo.create({
+    data: {
+      festivalId: festival.id,
+      category: fi.category,
+      title: fi.title ?? null,
+      imageUrls,
+      bodyText: fi.bodyText ?? null,
+      sourcePostUrl,
+      postedAt: fi.postedAt ? new Date(fi.postedAt) : null,
+      order: fi.order ?? 0,
+    },
+  });
+  stats.festivalInfo.inserted++;
+  return created.id;
 }
 
 // ---------- main ----------
@@ -449,6 +592,7 @@ async function main() {
     shows: { inserted: 0, updated: 0 },
     artists: { found: 0, created: 0 },
     venues: { found: 0, created: 0 },
+    festivalInfo: { inserted: 0, updated: 0 },
     imagesUploaded: 0,
     imageBytesIn: 0,
     imageBytesOut: 0,
@@ -467,6 +611,13 @@ async function main() {
       await upsertShow(e, payload.source, idx, stats);
     }
     idx++;
+  }
+
+  // Pass 3: festival_info — festivalKey 해석을 위해 페스티벌 이후에 실행.
+  for (const e of payload.entities) {
+    if (e.kind === 'festival_info') {
+      await upsertFestivalInfo(e, payload.source, stats);
+    }
   }
 
   // Audit log
@@ -497,6 +648,7 @@ async function main() {
   console.log(`shows:     ins=${stats.shows.inserted} upd=${stats.shows.updated}`);
   console.log(`artists:   found=${stats.artists.found} created=${stats.artists.created}`);
   console.log(`venues:    found=${stats.venues.found} created=${stats.venues.created}`);
+  console.log(`info:      ins=${stats.festivalInfo.inserted} upd=${stats.festivalInfo.updated}`);
   console.log(
     `images:    uploaded=${stats.imagesUploaded}  ` +
       `${(stats.imageBytesIn / 1024).toFixed(0)}KB -> ${(stats.imageBytesOut / 1024).toFixed(0)}KB`,

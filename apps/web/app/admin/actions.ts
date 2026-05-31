@@ -419,3 +419,97 @@ export async function saveFestivalAndApprove(payload: FestivalEditPayload) {
   await saveFestival(payload);
   await approveFestival(payload.id);
 }
+
+// ─────────────────────── FestivalInfo (관람 정보) ───────────────────────
+
+export async function approveFestivalInfo(id: string) {
+  const before = await prisma.festivalInfo.findUnique({ where: { id }, select: { status: true } });
+  if (!before) return;
+  await prisma.$transaction([
+    prisma.festivalInfo.update({
+      where: { id },
+      data: { status: 'APPROVED', reviewedAt: new Date(), reviewedBy: REVIEWER, reviewerNote: null },
+    }),
+    prisma.reviewLog.create({
+      data: {
+        entityType: 'FestivalInfo',
+        entityId: id,
+        action: 'approve',
+        source: 'admin',
+        oldValue: { status: before.status },
+        newValue: { status: 'APPROVED' },
+        reviewerId: REVIEWER,
+      },
+    }),
+  ]);
+  revalidateConsole();
+}
+
+export async function rejectFestivalInfo(id: string, note: string | null) {
+  const reason = note?.trim() || null;
+  const before = await prisma.festivalInfo.findUnique({ where: { id }, select: { status: true } });
+  if (!before) return;
+  await prisma.$transaction([
+    prisma.festivalInfo.update({
+      where: { id },
+      data: { status: 'REJECTED', reviewedAt: new Date(), reviewedBy: REVIEWER, reviewerNote: reason },
+    }),
+    prisma.reviewLog.create({
+      data: {
+        entityType: 'FestivalInfo',
+        entityId: id,
+        action: 'reject',
+        source: 'admin',
+        oldValue: { status: before.status },
+        newValue: { status: 'REJECTED' },
+        reviewerId: REVIEWER,
+        reviewerNote: reason,
+      },
+    }),
+  ]);
+  revalidateConsole();
+}
+
+export async function deleteFestivalInfo(id: string) {
+  const before = await prisma.festivalInfo.findUnique({ where: { id }, select: { status: true, title: true } });
+  if (!before) return;
+  await prisma.$transaction([
+    prisma.reviewLog.create({
+      data: {
+        entityType: 'FestivalInfo',
+        entityId: id,
+        action: 'delete',
+        source: 'admin',
+        oldValue: { status: before.status, title: before.title },
+        reviewerId: REVIEWER,
+      },
+    }),
+    prisma.festivalInfo.delete({ where: { id } }),
+  ]);
+  revalidateConsole();
+}
+
+/** 카테고리 보정 — 이미지 자동분류 오류가 잦아 운영자가 바로잡는 핵심 액션. */
+export async function setFestivalInfoCategory(id: string, category: string) {
+  const before = await prisma.festivalInfo.findUnique({ where: { id }, select: { category: true } });
+  if (!before) return;
+  await prisma.$transaction([
+    prisma.festivalInfo.update({
+      where: { id },
+      data: { category: category as Prisma.FestivalInfoUpdateInput['category'] },
+    }),
+    prisma.reviewLog.create({
+      data: {
+        entityType: 'FestivalInfo',
+        entityId: id,
+        action: 'edit',
+        source: 'admin',
+        field: 'category',
+        oldValue: { category: before.category },
+        newValue: { category },
+        reviewerId: REVIEWER,
+      },
+    }),
+  ]);
+  revalidateConsole();
+}

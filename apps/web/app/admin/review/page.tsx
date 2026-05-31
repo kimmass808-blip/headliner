@@ -9,6 +9,7 @@
 import {
   loadArtistSuggest,
   loadFestivalOptions,
+  loadPendingFestivalInfos,
   loadPendingFestivals,
   loadPendingShows,
 } from '../../../components/admin/loaders';
@@ -17,9 +18,10 @@ import { ReviewQueue } from '../../../components/admin/ReviewQueue';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminReviewPage() {
-  const [shows, festivals, festivalOptions, artistSuggest] = await Promise.all([
+  const [shows, festivals, infos, festivalOptions, artistSuggest] = await Promise.all([
     loadPendingShows(),
     loadPendingFestivals(),
+    loadPendingFestivalInfos(),
     loadFestivalOptions(),
     loadArtistSuggest(),
   ]);
@@ -36,6 +38,7 @@ export default async function AdminReviewPage() {
       <ReviewQueue
         initialShows={shows}
         initialFestivals={festivals}
+        initialInfos={infos}
         festivalOptions={festivalOptions}
         artistSuggest={artistSuggest}
       />

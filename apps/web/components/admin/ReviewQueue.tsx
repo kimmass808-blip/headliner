@@ -8,20 +8,106 @@ import { EditDrawer, RejectModal } from './EditDrawer';
 import { useToast } from './AdminShell';
 import {
   approveFestival,
+  approveFestivalInfo,
   approveShow,
   deleteFestival,
+  deleteFestivalInfo,
   deleteShow,
   rejectFestival,
+  rejectFestivalInfo,
   rejectShow,
   saveFestival,
   saveFestivalAndApprove,
   saveShow,
   saveShowAndApprove,
+  setFestivalInfoCategory,
 } from '../../app/admin/actions';
-import type { FestivalOption, FestivalVM, ItemVM, ShowVM } from './types';
+import type {
+  FestivalInfoCategory,
+  FestivalInfoVM,
+  FestivalOption,
+  FestivalVM,
+  ItemVM,
+  ShowVM,
+} from './types';
 
 function festCompleteness(f: FestivalVM): number {
   return 3 - Math.min(3, f.missing.length);
+}
+
+// 관람 정보 카테고리 — 운영자 보정용 셀렉트 옵션 (8종).
+const INFO_CATEGORIES: { value: FestivalInfoCategory; label: string }[] = [
+  { value: 'MAP', label: '사이트맵·배치도' },
+  { value: 'TIMETABLE', label: '타임테이블' },
+  { value: 'ACCESS', label: '교통·주차' },
+  { value: 'RULES', label: '입장·반입 규정' },
+  { value: 'FAQ', label: 'FAQ' },
+  { value: 'GOODS', label: 'MD·푸드' },
+  { value: 'AMENITY', label: '편의시설' },
+  { value: 'NOTICE', label: '안내' },
+];
+
+function infoCategoryLabel(c: FestivalInfoCategory): string {
+  return INFO_CATEGORIES.find((x) => x.value === c)?.label ?? c;
+}
+
+// ── FestivalInfo 행 — 카테고리 보정 셀렉트 + 승인/거절/삭제 ──
+function InfoRow({
+  fi,
+  focused,
+  onApprove,
+  onReject,
+  onDelete,
+  onChangeCategory,
+}: {
+  fi: FestivalInfoVM;
+  focused: boolean;
+  onApprove: (x: FestivalInfoVM) => void;
+  onReject: (x: FestivalInfoVM) => void;
+  onDelete: (x: FestivalInfoVM) => void;
+  onChangeCategory: (x: FestivalInfoVM, c: FestivalInfoCategory) => void;
+}) {
+  return (
+    <div
+      className={`group flex items-center gap-3 border-b border-zinc-100 px-4 py-2.5 transition ${
+        focused ? 'bg-zinc-50' : 'hover:bg-zinc-50/70'
+      }`}
+    >
+      <Poster src={fi.imageUrls[0] ?? null} className="h-[52px] w-10 shrink-0 rounded ring-1 ring-zinc-200" label="—" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="truncate text-[13.5px] font-semibold text-zinc-900">
+            {fi.title || <span className="text-zinc-400">(제목 없음)</span>}
+          </span>
+          {fi.imageUrls.length > 1 && (
+            <span className="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500">
+              {fi.imageUrls.length}장
+            </span>
+          )}
+        </div>
+        <div className="mt-0.5 truncate text-[12px] text-zinc-500">{fi.festivalName || '—'}</div>
+      </div>
+      <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+        <select
+          value={fi.category}
+          onChange={(e) => onChangeCategory(fi, e.target.value as FestivalInfoCategory)}
+          className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-[12px] text-zinc-700"
+          title="카테고리 보정"
+        >
+          {INFO_CATEGORIES.map((c) => (
+            <option key={c.value} value={c.value}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="flex shrink-0 items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+        <IconButton icon="check" title="승인 (A)" variant="approve" onClick={() => onApprove(fi)} />
+        <IconButton icon="x" title="거절 (R)" variant="danger" onClick={() => onReject(fi)} />
+        <IconButton icon="trash" title="삭제 (D)" variant="danger" onClick={() => onDelete(fi)} />
+      </div>
+    </div>
+  );
 }
 
 // ── Show 행 ──────────────────────────────────────────────
@@ -242,11 +328,13 @@ function Tab({
 export function ReviewQueue({
   initialShows,
   initialFestivals,
+  initialInfos,
   festivalOptions,
   artistSuggest,
 }: {
   initialShows: ShowVM[];
   initialFestivals: FestivalVM[];
+  initialInfos: FestivalInfoVM[];
   festivalOptions: FestivalOption[];
   artistSuggest: string[];
 }) {
@@ -254,9 +342,10 @@ export function ReviewQueue({
   const toast = useToast();
   const [, startTransition] = useTransition();
 
-  const [tab, setTab] = useState<'SHOW' | 'FESTIVAL'>('SHOW');
+  const [tab, setTab] = useState<'SHOW' | 'FESTIVAL' | 'INFO'>('SHOW');
   const [shows, setShows] = useState<ShowVM[]>(initialShows);
   const [fests, setFests] = useState<FestivalVM[]>(initialFestivals);
+  const [infos, setInfos] = useState<FestivalInfoVM[]>(initialInfos);
   const [selId, setSelId] = useState<string | null>(null);
   const [focusIdx, setFocusIdx] = useState(0);
   const [rejectTarget, setRejectTarget] = useState<ItemVM | null>(null);
@@ -265,8 +354,9 @@ export function ReviewQueue({
 
   useEffect(() => setShows(initialShows), [initialShows]);
   useEffect(() => setFests(initialFestivals), [initialFestivals]);
+  useEffect(() => setInfos(initialInfos), [initialInfos]);
 
-  const list: ItemVM[] = tab === 'SHOW' ? shows : fests;
+  const list: ItemVM[] = tab === 'SHOW' ? shows : tab === 'FESTIVAL' ? fests : [];
   const selected = [...shows, ...fests].find((x) => x.id === selId) || null;
   const drawerOpen = !!selected;
 
@@ -337,6 +427,27 @@ export function ReviewQueue({
       `거절됨 · ${label || item.id}`,
     );
     setRejectTarget(null);
+  };
+
+  // ── FestivalInfo 핸들러 (카테고리 보정 + 승인/거절/삭제) ──
+  const removeInfoLocal = (id: string) => {
+    setInfos((p) => p.filter((x) => x.id !== id));
+  };
+  const approveInfo = (item: FestivalInfoVM) => {
+    removeInfoLocal(item.id);
+    run(() => approveFestivalInfo(item.id), `승인됨 · ${item.title || item.id} → 사이트 공개`);
+  };
+  const delInfo = (item: FestivalInfoVM) => {
+    removeInfoLocal(item.id);
+    run(() => deleteFestivalInfo(item.id), `삭제됨 · ${item.id}`);
+  };
+  const rejectInfo = (item: FestivalInfoVM) => {
+    removeInfoLocal(item.id);
+    run(() => rejectFestivalInfo(item.id, null), `거절됨 · ${item.title || item.id}`);
+  };
+  const changeInfoCategory = (item: FestivalInfoVM, category: FestivalInfoCategory) => {
+    setInfos((p) => p.map((x) => (x.id === item.id ? { ...x, category } : x)));
+    run(() => setFestivalInfoCategory(item.id, category), `카테고리 변경 · ${infoCategoryLabel(category)}`);
   };
 
   const bulkRemoveLocal = (ids: string[]) => {
@@ -474,6 +585,9 @@ export function ReviewQueue({
             <Tab active={tab === 'FESTIVAL'} count={fests.length} onClick={() => setTab('FESTIVAL')}>
               Festival
             </Tab>
+            <Tab active={tab === 'INFO'} count={infos.length} onClick={() => setTab('INFO')}>
+              관람정보
+            </Tab>
           </div>
           <div className="flex items-center gap-2 pb-2">
             <span className="hidden items-center gap-1.5 text-[11px] text-zinc-400 xl:flex">
@@ -488,8 +602,16 @@ export function ReviewQueue({
             <Checkbox checked={allChecked} indeterminate={someChecked} onChange={toggleAll} title="전체 선택" />
           </span>
           <span className="w-10 shrink-0" />
-          <span className="flex-1 truncate">{tab === 'SHOW' ? '제목 · 아티스트' : '페스티벌 · 위치'}</span>
-          {!drawerOpen && (
+          <span className="flex-1 truncate">
+            {tab === 'SHOW' ? '제목 · 아티스트' : tab === 'INFO' ? '관람정보 · 페스티벌' : '페스티벌 · 위치'}
+          </span>
+          {!drawerOpen && tab === 'INFO' && (
+            <>
+              <span className="hidden w-40 shrink-0 md:block">카테고리</span>
+              <span className="w-[112px] shrink-0 text-right">액션</span>
+            </>
+          )}
+          {!drawerOpen && tab !== 'INFO' && (
             <>
               {tab === 'SHOW' ? <span className="hidden w-44 shrink-0 lg:block">공연장</span> : null}
               <span className="hidden w-28 shrink-0 md:block lg:w-40">{tab === 'SHOW' ? '날짜' : '기간'}</span>
@@ -502,7 +624,27 @@ export function ReviewQueue({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto bg-white">
-          {list.length === 0 ? (
+          {tab === 'INFO' ? (
+            infos.length === 0 ? (
+              <EmptyState
+                icon="check"
+                title="검수 대기 항목이 없습니다"
+                body="모든 관람정보 항목을 처리했습니다. 새 크롤이 들어오면 여기 표시됩니다."
+              />
+            ) : (
+              infos.map((fi, i) => (
+                <InfoRow
+                  key={fi.id}
+                  fi={fi}
+                  focused={focusIdx === i}
+                  onApprove={approveInfo}
+                  onReject={rejectInfo}
+                  onDelete={delInfo}
+                  onChangeCategory={changeInfoCategory}
+                />
+              ))
+            )
+          ) : list.length === 0 ? (
             <EmptyState
               icon="check"
               title="검수 대기 항목이 없습니다"

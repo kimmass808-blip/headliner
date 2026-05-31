@@ -15,6 +15,7 @@ import {
   type LineupDayData,
   type LineupChipData,
 } from '../../../components/common/LineupSection';
+import { FestivalInfoSection } from '../../../components/festival/FestivalInfoSection';
 import { ymd } from '../../../lib/calendar';
 
 export const revalidate = 86400; // 1일. 관리자 수정 시 actions.ts가 즉시 무효화.
@@ -68,6 +69,10 @@ export default async function FestivalDetailPage({
           artists: { select: { id: true, canonicalName: true } },
         },
         orderBy: [{ firstSessionDate: 'asc' }, { setOrder: 'asc' }],
+      },
+      infoPosts: {
+        where: { status: 'APPROVED' },
+        orderBy: [{ category: 'asc' }, { order: 'asc' }, { postedAt: 'asc' }],
       },
     },
   });
@@ -152,11 +157,7 @@ export default async function FestivalDetailPage({
 
         <section className="mx-auto mt-6 max-w-[1400px] px-6 sm:mt-8 sm:px-10">
           <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,520px)_1fr] lg:gap-16">
-            <PosterColumn
-              imageUrl={festival.posterImageUrl}
-              alt={festival.name}
-              dateLabel={dateText}
-            />
+            <PosterColumn imageUrl={festival.posterImageUrl} alt={festival.name} />
             <FestivalInfoColumn
               name={festival.name}
               dateText={dateText}
@@ -173,6 +174,17 @@ export default async function FestivalDetailPage({
         </section>
 
         <LineupSection totalArtists={lineupTotal.size} days={lineupDays} />
+
+        {festival.infoPosts.length ? (
+          <FestivalInfoSection
+            posts={festival.infoPosts.map((p) => ({
+              id: p.id,
+              category: p.category,
+              title: p.title,
+              imageUrls: p.imageUrls,
+            }))}
+          />
+        ) : null}
       </main>
     </div>
   );
