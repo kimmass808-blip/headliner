@@ -4,6 +4,8 @@
  */
 
 import Link from 'next/link';
+import { MobileNav } from './MobileNav';
+import { NAV_ITEMS } from './nav-items';
 
 function SearchIcon({ className = '' }: { className?: string }) {
   return (
@@ -25,7 +27,7 @@ function SearchIcon({ className = '' }: { className?: string }) {
 
 export function HomeHeader() {
   return (
-    <header className="w-full hairline">
+    <header className="relative w-full hairline">
       <div className="mx-auto flex h-[72px] max-w-[1400px] items-center justify-between px-6 sm:px-10">
         <Link
           href="/"
@@ -35,20 +37,13 @@ export function HomeHeader() {
           HEADLINER
         </Link>
 
-        {/* nav — 실제 라우팅된 항목만 표시. */}
+        {/* nav — 실제 라우팅된 항목만 표시. 데스크탑 전용. */}
         <nav className="hidden items-center gap-8 text-[13px] tracking-[0.02em] text-paper/70 md:flex">
-          <Link href="/shows" className="transition hover:text-paper">
-            공연
-          </Link>
-          <Link href="/festivals" className="transition hover:text-paper">
-            페스티벌
-          </Link>
-          <Link href="/calendar" className="transition hover:text-paper">
-            캘린더
-          </Link>
-          <Link href="/scrapped" className="transition hover:text-paper">
-            스크랩
-          </Link>
+          {NAV_ITEMS.map((item) => (
+            <Link key={item.href} href={item.href} className="transition hover:text-paper">
+              {item.label}
+            </Link>
+          ))}
         </nav>
 
         <div className="flex items-center gap-3">
@@ -59,6 +54,7 @@ export function HomeHeader() {
           >
             <SearchIcon className="h-4 w-4" />
           </Link>
+          <MobileNav />
         </div>
       </div>
     </header>
