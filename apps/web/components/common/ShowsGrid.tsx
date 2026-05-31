@@ -38,7 +38,7 @@ export type ShowsGridSort = 'date' | 'name';
 
 export interface ShowsGridProps {
   items: ShowsGridItem[];
-  kicker: string;          // 'UPCOMING / 2026'
+  kicker?: string;         // 'UPCOMING / 2026' (생략 시 라벨 미표시)
   title: string;           // '다가오는 공연'
   countSuffix?: string;    // '건' (기본)
   /** 처음 표시할 카드 수. 기본 20. 0 이하면 페이지네이션 없이 전부 표시. */
@@ -98,9 +98,11 @@ export function ShowsGrid({
     <section className="mx-auto mt-20 max-w-[1400px] px-6 sm:mt-24 sm:px-10">
       <div className="hairline mb-10 flex items-end justify-between pb-6">
         <div>
-          <div className="mb-3 text-[11px] uppercase tracking-[0.3em] text-paper/45">
-            {kicker}
-          </div>
+          {kicker && (
+            <div className="mb-3 text-[11px] uppercase tracking-[0.3em] text-paper/45">
+              {kicker}
+            </div>
+          )}
           <div className="flex items-baseline gap-3">
             <h2 className="text-[26px] font-bold leading-tight tracking-[-0.025em] text-paper sm:text-[32px]">
               {title}

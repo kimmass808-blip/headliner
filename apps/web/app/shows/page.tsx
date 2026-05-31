@@ -35,7 +35,6 @@ export default async function ShowsListPage() {
         </section>
         <ShowsGrid
           items={items}
-          kicker={`UPCOMING / ${new Date().getFullYear()}`}
           title="공연"
           sortable
           emptyLabel="예정된 공연이 없습니다."
