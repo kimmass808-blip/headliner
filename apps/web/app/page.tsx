@@ -17,6 +17,11 @@ import {
 import { ArtistSection } from '../components/search/ArtistSection';
 import { EmptyState } from '../components/search/EmptyState';
 import { ShowsGrid, type ShowsGridItem } from '../components/common/ShowsGrid';
+import {
+  inheritImage,
+  inheritVenue,
+  inheritCardName,
+} from '../lib/festivalInheritance';
 
 export const dynamic = 'force-dynamic';
 
@@ -169,9 +174,19 @@ export default async function HomePage({
             missingFields: true,
             stage: true,
             festivalId: true,
-            venue: { select: { id: true, name: true } },
+            venue: { select: { id: true, name: true, region: true } },
             artists: { select: { id: true, canonicalName: true } },
-            festival: { select: { id: true, name: true } },
+            // 페스티벌 내부 공연은 이미지·장소·이름을 부모에서 상속(읽기 시점 fallback).
+            festival: {
+              select: {
+                id: true,
+                name: true,
+                posterImageUrl: true,
+                ticketUrl: true,
+                locationText: true,
+                venue: { select: { name: true, region: true } },
+              },
+            },
           },
         })
       : [],
@@ -300,17 +315,19 @@ export default async function HomePage({
   function toGridItem(c: PosterCardResult): ShowsGridItem {
     if (c.kind === 'show') {
       const d = c.data.firstSessionDate ? new Date(c.data.firstSessionDate) : null;
-      const primaryName = c.data.artists[0]?.canonicalName ?? c.data.title ?? '공연';
-      const secondaryTitle = c.data.artists.length > 0 && c.data.title ? c.data.title : null;
+      // 페스티벌 내부 공연은 이름/이미지/장소를 부모에서 상속.
+      // 단독공연이면 공연명=primary(상단), 아티스트=secondary(하단).
+      const name = inheritCardName(c.data, c.data.festival);
+      const venue = inheritVenue(c.data.venue, c.data.festival);
       return {
         key: c.key,
         href: `/shows/${c.data.id}`,
         type: 'SHOW',
-        imageUrl: c.data.imageUrl,
-        primaryName,
-        secondaryTitle,
-        city: null,
-        venueName: c.data.venue?.name ?? null,
+        imageUrl: inheritImage(c.data.imageUrl, c.data.festival),
+        primaryName: name.primary,
+        secondaryTitle: name.secondary,
+        city: venue.city,
+        venueName: venue.name,
         date: d,
         dayLabel: formatWeekdayShort(d),
       };

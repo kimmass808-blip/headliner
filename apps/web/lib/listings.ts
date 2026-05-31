@@ -67,8 +67,10 @@ export function mapFestivalToItem(f: FestivalListRow): PosterListItem {
 /** Show → PosterCard 아이템 (홈/리스트 공통). */
 export function mapShowToItem(s: ShowListRow): PosterListItem {
   const d = toDate(s.firstSessionDate);
-  const primaryName = s.artists[0]?.canonicalName ?? s.title ?? '공연';
-  const secondaryTitle = s.artists.length > 0 && s.title ? s.title : null;
+  // 공연명을 primary(상단·크게), 아티스트명을 secondary(하단·작게)로.
+  const artistName = s.artists[0]?.canonicalName ?? null;
+  const primaryName = s.title ?? artistName ?? '공연';
+  const secondaryTitle = s.title && artistName ? artistName : null;
   return {
     key: `s:${s.id}`,
     href: `/shows/${s.id}`,

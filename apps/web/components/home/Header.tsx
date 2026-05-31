@@ -35,8 +35,14 @@ export function HomeHeader() {
           HEADLINER
         </Link>
 
-        {/* nav — 실제 라우팅된 항목만 표시. 인덱스 페이지는 차후 추가. */}
+        {/* nav — 실제 라우팅된 항목만 표시. */}
         <nav className="hidden items-center gap-8 text-[13px] tracking-[0.02em] text-paper/70 md:flex">
+          <Link href="/shows" className="transition hover:text-paper">
+            공연
+          </Link>
+          <Link href="/festivals" className="transition hover:text-paper">
+            페스티벌
+          </Link>
           <Link href="/calendar" className="transition hover:text-paper">
             캘린더
           </Link>

@@ -7,6 +7,7 @@ import { prisma } from '@mft/db';
 import { HomeHeader } from '../../../components/home/Header';
 import { BackLink } from '../../../components/common/BackLink';
 import { ShowsGrid, type ShowsGridItem } from '../../../components/common/ShowsGrid';
+import { inheritImage, inheritVenue } from '../../../lib/festivalInheritance';
 import { NoShowsState } from '../../../components/common/NoShowsState';
 import type { ExternalLink } from '../../../components/common/ExternalLinks';
 import type { PlatformKind } from '../../../components/common/PlatformIcon';
@@ -75,7 +76,17 @@ export default async function ArtistDetailPage({
         orderBy: [{ firstSessionDate: 'asc' }],
         include: {
           venue: { select: { id: true, name: true, region: true } },
-          festival: { select: { id: true, name: true } },
+          // 페스티벌 내부 공연은 이미지·장소를 부모에서 상속(읽기 시점 fallback).
+          festival: {
+            select: {
+              id: true,
+              name: true,
+              posterImageUrl: true,
+              ticketUrl: true,
+              locationText: true,
+              venue: { select: { name: true, region: true } },
+            },
+          },
         },
       },
     },
@@ -113,17 +124,19 @@ export default async function ArtistDetailPage({
     // v6: card displays first session date. Multi-session range is shown on
     // the show detail page; cards remain single-date for layout simplicity.
     const d = show.firstSessionDate ? new Date(show.firstSessionDate) : null;
+    // 페스티벌 내부 공연: 이미지·장소를 부모에서 상속(읽기 시점 fallback).
+    const venue = inheritVenue(show.venue, show.festival);
     return {
       key: show.id,
       href: `/shows/${show.id}`,
       type: 'SHOW',
-      imageUrl: show.imageUrl,
+      imageUrl: inheritImage(show.imageUrl, show.festival),
       primaryName: show.festival
         ? show.festival.name
         : (show.title ?? '공연'),
       secondaryTitle: show.festival ? show.title : null,
-      city: show.venue?.region ?? null,
-      venueName: show.venue?.name ?? null,
+      city: venue.city,
+      venueName: venue.name,
       date: d,
       dayLabel: formatWeekdayShort(d),
     };

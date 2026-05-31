@@ -1,5 +1,5 @@
 /**
- * Show 상세 좌측 컬럼 — 포스터 + 작은 캡션.
+ * Show 상세 좌측 컬럼 — 포스터.
  * 원본 비율 유지(object-contain), max-h 70vh.
  */
 
@@ -8,10 +8,9 @@ import { getImageUrl, getImageSrcSet } from '../../lib/imageUrl';
 export interface PosterColumnProps {
   imageUrl: string | null;
   alt: string;
-  dateLabel: string | null;
 }
 
-export function PosterColumn({ imageUrl, alt, dateLabel }: PosterColumnProps) {
+export function PosterColumn({ imageUrl, alt }: PosterColumnProps) {
   // 상세 페이지 — 큰 사이즈로 선명하게. retina 고려해 1200px 요청.
   const src = getImageUrl(imageUrl, { width: 1200, quality: 82, resize: 'contain' });
   // 반응형: 모바일 풀폭 ~ 데스크탑 좌측 컬럼(최대 520px). 작은 화면은 더 작은 원본.
@@ -35,10 +34,6 @@ export function PosterColumn({ imageUrl, alt, dateLabel }: PosterColumnProps) {
             No poster
           </div>
         )}
-      </div>
-      <div className="mt-3 flex items-center justify-between text-[10px] uppercase tracking-[0.22em] text-dim">
-        <span>POSTER · 원본 비율 유지</span>
-        {dateLabel ? <span>{dateLabel}</span> : null}
       </div>
     </div>
   );

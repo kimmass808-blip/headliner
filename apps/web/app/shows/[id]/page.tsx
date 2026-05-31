@@ -17,6 +17,11 @@ import {
   type LineupChipData,
 } from '../../../components/common/LineupSection';
 import { ymd } from '../../../lib/calendar';
+import {
+  inheritImage,
+  inheritVenue,
+  inheritTicketUrl,
+} from '../../../lib/festivalInheritance';
 
 export const revalidate = 86400; // 1일. 관리자 수정 시 actions.ts가 즉시 무효화.
 // 동적 세그먼트의 런타임 ISR 활성화: 빌드 시엔 아무 경로도 프리렌더하지 않고,
@@ -61,7 +66,17 @@ export default async function ShowDetailPage({
     include: {
       venue: true,
       artists: { select: { id: true, canonicalName: true } },
-      festival: { select: { id: true, name: true } },
+      // 페스티벌 내부 공연은 이미지·장소·티켓을 부모에서 상속(읽기 시점 fallback).
+      festival: {
+        select: {
+          id: true,
+          name: true,
+          posterImageUrl: true,
+          ticketUrl: true,
+          locationText: true,
+          venue: { select: { name: true, region: true } },
+        },
+      },
       setlist: { include: { songs: { orderBy: { order: 'asc' } } } },
       sessions: { orderBy: { date: 'asc' } },
     },
@@ -130,6 +145,8 @@ export default async function ShowDetailPage({
   // remains as a Phase 6 cleanup target — do not read it here.
   const sessions = show.sessions.map((s) => {
     const d = new Date(s.date);
+    // 세션에 티켓이 없으면 부모 페스티벌 통합 티켓으로 fallback.
+    const ticketUrl = inheritTicketUrl(s.ticketUrl, show.festival);
     return {
       date: `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`,
       monthDay: [
@@ -139,17 +156,10 @@ export default async function ShowDetailPage({
       dayShort: WEEKDAY_EN[d.getDay()]!,
       dayKr: WEEKDAY_KR[d.getDay()]!,
       startTime: s.startTime,
-      ticketUrl: s.ticketUrl,
-      ticketLabel: s.ticketUrl ? deriveTicketLabel(s.ticketUrl) : null,
+      ticketUrl,
+      ticketLabel: ticketUrl ? deriveTicketLabel(ticketUrl) : null,
     };
   });
-
-  // Poster column 캡션용 날짜 라벨 — single / multi-day range
-  const posterDateLabel = sessions.length === 0
-    ? null
-    : sessions.length === 1
-      ? sessions[0]!.date
-      : `${sessions[0]!.date} – ${sessions[sessions.length - 1]!.date}`;
 
   // 셋리스트 → 본편/앙코르 분리 + 각각 1부터 재번호
   const songs: SongRowData[] = show.setlist
@@ -167,6 +177,10 @@ export default async function ShowDetailPage({
   const artistsAlt = show.artists.map((a) => a.canonicalName).join(', ');
   const posterAlt = `${artistsAlt}${show.title ? ` — ${show.title}` : ''}`;
 
+  // 페스티벌 내부 공연: 이미지·장소를 부모에서 상속(읽기 시점 fallback).
+  const posterImage = inheritImage(show.imageUrl, show.festival);
+  const venue = inheritVenue(show.venue, show.festival);
+
   return (
     <div className="min-h-screen bg-ink-900 font-sans text-paper">
       <HomeHeader />
@@ -181,17 +195,13 @@ export default async function ShowDetailPage({
 
         <section className="mx-auto mt-6 max-w-[1400px] px-6 sm:mt-8 sm:px-10">
           <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,520px)_1fr] lg:gap-16">
-            <PosterColumn
-              imageUrl={show.imageUrl}
-              alt={posterAlt}
-              dateLabel={posterDateLabel}
-            />
+            <PosterColumn imageUrl={posterImage} alt={posterAlt} />
             <InfoColumn
               artists={show.artists}
               title={show.title}
               sessions={sessions}
-              venueName={show.venue?.name ?? null}
-              city={show.venue?.region ?? null}
+              venueName={venue.name}
+              city={venue.city}
               sourceUrl={show.originalPostUrl}
               sourceLabel={deriveSourceLabel(igPost?.sourceAccount ?? null)}
               festival={
