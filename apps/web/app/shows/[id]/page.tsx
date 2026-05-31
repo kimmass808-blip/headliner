@@ -18,7 +18,13 @@ import {
 } from '../../../components/common/LineupSection';
 import { ymd } from '../../../lib/calendar';
 
-export const revalidate = 3600;
+export const revalidate = 86400; // 1일. 관리자 수정 시 actions.ts가 즉시 무효화.
+// 동적 세그먼트의 런타임 ISR 활성화: 빌드 시엔 아무 경로도 프리렌더하지 않고,
+// 첫 방문 때 렌더 후 revalidate(1시간) 동안 풀 라우트 캐시에 저장(이후 캐시 HIT).
+export const dynamicParams = true;
+export function generateStaticParams() {
+  return [];
+}
 
 const WEEKDAY_EN = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'] as const;
 const WEEKDAY_KR = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'] as const;
@@ -63,20 +69,22 @@ export default async function ShowDetailPage({
 
   if (!show || show.status !== 'APPROVED') notFound(); // v7: PENDING/REJECTED은 사이트에서 미노출
 
-  // InstagramPost에서 sourceAccount 조회 (있으면 sourceLabel에 사용)
-  const igPost = await prisma.instagramPost.findUnique({
-    where: { canonicalUrl: show.originalPostUrl },
-    select: { sourceAccount: true },
-  });
-
-  // 페스티벌 소속이면 같은 페스티벌의 라인업 fetch (chip 기반 LineupSection용)
-  const festivalLineupShows = show.festivalId
-    ? await prisma.show.findMany({
-        where: { status: 'APPROVED', festivalId: show.festivalId, duplicateOfShowId: null }, // v7
-        include: { artists: { select: { id: true, canonicalName: true } } },
-        orderBy: [{ firstSessionDate: 'asc' }, { setOrder: 'asc' }],
-      })
-    : [];
+  // show 결과에만 의존하는 두 조회는 서로 독립이므로 병렬 실행(라운드트립 1회 절약).
+  // - InstagramPost에서 sourceAccount 조회 (있으면 sourceLabel에 사용)
+  // - 페스티벌 소속이면 같은 페스티벌의 라인업 fetch (chip 기반 LineupSection용)
+  const [igPost, festivalLineupShows] = await Promise.all([
+    prisma.instagramPost.findUnique({
+      where: { canonicalUrl: show.originalPostUrl },
+      select: { sourceAccount: true },
+    }),
+    show.festivalId
+      ? prisma.show.findMany({
+          where: { status: 'APPROVED', festivalId: show.festivalId, duplicateOfShowId: null }, // v7
+          include: { artists: { select: { id: true, canonicalName: true } } },
+          orderBy: [{ firstSessionDate: 'asc' }, { setOrder: 'asc' }],
+        })
+      : Promise.resolve([]),
+  ]);
 
   // 라인업 데이터 준비 — day별 그룹 + dedup + isHere 마킹
   let lineupTotalArtists = 0;

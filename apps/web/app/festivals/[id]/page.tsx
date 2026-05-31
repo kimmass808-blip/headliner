@@ -17,7 +17,13 @@ import {
 } from '../../../components/common/LineupSection';
 import { ymd } from '../../../lib/calendar';
 
-export const revalidate = 3600;
+export const revalidate = 86400; // 1일. 관리자 수정 시 actions.ts가 즉시 무효화.
+// 동적 세그먼트의 런타임 ISR 활성화: 빌드 시엔 아무 경로도 프리렌더하지 않고,
+// 첫 방문 때 렌더 후 revalidate(1시간) 동안 풀 라우트 캐시에 저장(이후 캐시 HIT).
+export const dynamicParams = true;
+export function generateStaticParams() {
+  return [];
+}
 
 const WEEKDAY_KR_FULL = [
   '일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일',

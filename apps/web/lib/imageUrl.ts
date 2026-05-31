@@ -40,3 +40,20 @@ export function getImageUrl(url: string | null | undefined, opts: ImageUrlOpts =
   const qs = params.toString();
   return qs ? `${transformed}?${qs}` : transformed;
 }
+
+/**
+ * 반응형 srcset 문자열 생성 — 여러 width 후보를 Supabase 변환 URL로 만들어
+ * `<img srcSet>` + `sizes`와 함께 쓰면 브라우저가 화면/DPR에 맞는 크기를 받는다.
+ *
+ * Storage 공개 URL이 아니면(외부 CDN 등) width 변환이 무의미하므로 undefined 반환.
+ */
+export function getImageSrcSet(
+  url: string | null | undefined,
+  widths: number[],
+  opts: { quality?: number } = {},
+): string | undefined {
+  if (!url || !url.includes(OBJECT_PUBLIC)) return undefined;
+  return widths
+    .map((w) => `${getImageUrl(url, { width: w, quality: opts.quality })} ${w}w`)
+    .join(', ');
+}

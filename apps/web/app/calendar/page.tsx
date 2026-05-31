@@ -5,6 +5,7 @@
  * `?month=YYYY-MM` 으로 표시 월 제어 (없으면 TODAY가 속한 달).
  */
 
+import { unstable_cache } from 'next/cache';
 import { prisma } from '@mft/db';
 import { HomeHeader } from '../../components/home/Header';
 import { BackLink } from '../../components/common/BackLink';
@@ -29,6 +30,59 @@ interface SearchParams {
   month?: string;
 }
 
+/**
+ * 표시 월의 grid 범위에 걸치는 세션/페스티벌 조회.
+ * 페이지는 ?month searchParams로 동적이지만, 범위별 조회 결과는 요청 간 캐시.
+ * range 경계는 월별로 고정 → 월 단위 캐시 키.
+ */
+const getCalendarData = unstable_cache(
+  async (rangeStartMs: number, rangeEndMs: number) => {
+    const rangeStart = new Date(rangeStartMs);
+    const rangeEnd = new Date(rangeEndMs);
+    return Promise.all([
+      prisma.showSession.findMany({
+        where: {
+          date: { gte: rangeStart, lte: rangeEnd },
+          show: { status: 'APPROVED', duplicateOfShowId: null, festivalId: null }, // v7
+        },
+        include: {
+          show: {
+            select: {
+              id: true,
+              title: true,
+              imageUrl: true,
+              artists: { select: { id: true, canonicalName: true } },
+              venue: { select: { name: true, region: true } },
+            },
+          },
+        },
+        orderBy: { date: 'asc' },
+      }),
+      prisma.festival.findMany({
+        where: {
+          status: 'APPROVED', // v7
+          AND: [
+            { OR: [{ startDate: { lte: rangeEnd } }, { startDate: null }] },
+            { OR: [{ endDate: { gte: rangeStart } }, { endDate: null }] },
+          ],
+          startDate: { not: null },
+        },
+        select: {
+          id: true,
+          name: true,
+          startDate: true,
+          endDate: true,
+          locationText: true,
+          posterImageUrl: true,
+          venue: { select: { name: true, region: true } },
+        },
+      }),
+    ]);
+  },
+  ['calendar-month-v1'],
+  { revalidate: 86400, tags: ['calendar', 'shows', 'festivals'] }, // 관리자 수정 시 태그로 즉시 무효화
+);
+
 export default async function CalendarPage({
   searchParams,
 }: {
@@ -45,45 +99,10 @@ export default async function CalendarPage({
 
   // Show: 해당 범위에 세션이 있는 standalone 공연
   // Festival: 해당 범위와 겹치는 페스티벌 row
-  const [sessions, festivals] = await Promise.all([
-    prisma.showSession.findMany({
-      where: {
-        date: { gte: rangeStart, lte: rangeEnd },
-        show: { status: 'APPROVED', duplicateOfShowId: null, festivalId: null }, // v7
-      },
-      include: {
-        show: {
-          select: {
-            id: true,
-            title: true,
-            imageUrl: true,
-            artists: { select: { id: true, canonicalName: true } },
-            venue: { select: { name: true, region: true } },
-          },
-        },
-      },
-      orderBy: { date: 'asc' },
-    }),
-    prisma.festival.findMany({
-      where: {
-        status: 'APPROVED', // v7
-        AND: [
-          { OR: [{ startDate: { lte: rangeEnd } }, { startDate: null }] },
-          { OR: [{ endDate: { gte: rangeStart } }, { endDate: null }] },
-        ],
-        startDate: { not: null },
-      },
-      select: {
-        id: true,
-        name: true,
-        startDate: true,
-        endDate: true,
-        locationText: true,
-        posterImageUrl: true,
-        venue: { select: { name: true, region: true } },
-      },
-    }),
-  ]);
+  const [sessions, festivals] = await getCalendarData(
+    rangeStart.getTime(),
+    rangeEnd.getTime(),
+  );
 
   // 세션 → 쇼별로 그룹 → CalendarEvent
   const showMap = new Map<string, CalendarEvent>();

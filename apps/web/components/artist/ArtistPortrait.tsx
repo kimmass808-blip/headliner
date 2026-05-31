@@ -2,11 +2,12 @@
  * 아티스트 정사각 프로필 — rounded-md, object-cover. 사진 없으면 점선 박스 + 라벨.
  */
 
-import { getImageUrl } from '../../lib/imageUrl';
+import { getImageUrl, getImageSrcSet } from '../../lib/imageUrl';
 
 export function ArtistPortrait({ photo, name }: { photo: string | null; name: string }) {
   // 상세 페이지의 정사각 프로필. 보통 한 컬럼 폭 280~320px → retina 고려 600px.
   const src = getImageUrl(photo, { width: 600, quality: 80, resize: 'cover' });
+  const srcSet = getImageSrcSet(photo, [300, 450, 600], { quality: 80 });
   return (
     <div className="w-full">
       <div
@@ -19,7 +20,11 @@ export function ArtistPortrait({ photo, name }: { photo: string | null; name: st
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={src}
+            srcSet={srcSet}
+            sizes="(max-width: 1024px) 40vw, 320px"
             alt={name}
+            loading="lazy"
+            decoding="async"
             className="absolute inset-0 h-full w-full object-cover"
           />
         ) : (

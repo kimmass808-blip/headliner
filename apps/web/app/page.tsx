@@ -2,6 +2,7 @@
  * Headliner — 공개 검색 메인 페이지 (AC-7, AC-7b, AC-8).
  */
 
+import { unstable_cache } from 'next/cache';
 import { defaultSearchEngine } from '@mft/search';
 import { prisma } from '@mft/db';
 import { HomeHeader } from '../components/home/Header';
@@ -31,22 +32,15 @@ function isValidFilter(t: string | undefined): t is SearchFilterType {
   return t === 'all' || t === 'artist' || t === 'show' || t === 'festival';
 }
 
-export default async function HomePage({
-  searchParams,
-}: {
-  searchParams: Promise<SearchParams>;
-}) {
-  const { q = '', type } = await searchParams;
-  const trimmed = q.trim();
-  const filter: SearchFilterType = isValidFilter(type) ? type : 'all';
-
-  if (!trimmed) {
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-
-    // 페스티벌은 카드 1개로 묶고, festivalId가 없는 standalone Show만 ShowCard로.
-    // 같은 페스티벌의 lineup child Show가 그리드를 도배하지 않도록.
-    const [upcomingFestivals, upcomingShows] = await Promise.all([
+/**
+ * 홈 랜딩(검색어 없음)의 다가오는 공연/페스티벌 데이터.
+ * 페이지는 searchParams 때문에 동적이지만, 이 DB 조회 자체는 요청 간 캐시.
+ * startOfTodayMs는 자정으로 0 처리되어 하루 동안 동일 → 일자별 캐시 키.
+ */
+const getUpcomingData = unstable_cache(
+  async (startOfTodayMs: number) => {
+    const startOfToday = new Date(startOfTodayMs);
+    return Promise.all([
       prisma.festival.findMany({
         where: {
           status: 'APPROVED', // v7: 사이트 공개 큐레이션은 승인된 행만
@@ -93,6 +87,28 @@ export default async function HomePage({
         },
       }),
     ]);
+  },
+  ['home-upcoming-v1'],
+  { revalidate: 86400, tags: ['home', 'shows', 'festivals'] }, // 관리자 수정 시 태그로 즉시 무효화
+);
+
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
+  const { q = '', type } = await searchParams;
+  const trimmed = q.trim();
+  const filter: SearchFilterType = isValidFilter(type) ? type : 'all';
+
+  if (!trimmed) {
+    // 페스티벌은 카드 1개로 묶고, festivalId가 없는 standalone Show만 ShowCard로.
+    // 같은 페스티벌의 lineup child Show가 그리드를 도배하지 않도록.
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const [upcomingFestivals, upcomingShows] = await getUpcomingData(
+      startOfToday.getTime(),
+    );
 
     // 페스티벌 + 단독공연을 PosterCard 형식으로 통일 → 날짜순 인터리브 → 상위 8건
     const festivalItems: UpcomingItem[] = upcomingFestivals

@@ -6,7 +6,7 @@
  */
 
 import Link from 'next/link';
-import { getImageUrl } from '../../lib/imageUrl';
+import { getImageUrl, getImageSrcSet } from '../../lib/imageUrl';
 
 export interface HomePosterCardProps {
   href: string;
@@ -42,6 +42,8 @@ export function PosterCard(props: HomePosterCardProps) {
   const md = splitMonthDay(date);
   // 그리드 카드 — 3:4, 보통 한 컬럼 너비 280~360px. retina 고려해 600px 요청.
   const src = getImageUrl(imageUrl, { width: 600, quality: 78, resize: 'cover' });
+  // 반응형: 모바일 2열(~45vw) ~ 데스크탑 다열(~320px). 화면/DPR에 맞춰 선택.
+  const srcSet = getImageSrcSet(imageUrl, [300, 450, 600], { quality: 78 });
 
   return (
     <Link href={href} className="poster-card group block">
@@ -51,8 +53,11 @@ export function PosterCard(props: HomePosterCardProps) {
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={src}
+            srcSet={srcSet}
+            sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 320px"
             alt=""
             loading="lazy"
+            decoding="async"
             className="poster-img absolute inset-0 h-full w-full object-cover opacity-90 group-hover:opacity-100"
           />
         ) : (

@@ -4,7 +4,7 @@
 // and/or edits entity data, and appends a ReviewLog row (the learning signal for
 // the ingest-show correction loop). Public queries only surface APPROVED rows.
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { prisma } from '@mft/db';
 import { canonicalizeArtistName, canonicalizeVenueText } from '@mft/canonicalize';
 import type { Prisma } from '@prisma/client';
@@ -17,10 +17,24 @@ const REVIEWER = 'admin';
 // 왕복 자체를 줄여 타임아웃을 회피한다.
 const TX_OPTS = { maxWait: 15_000, timeout: 30_000 } as const;
 
+/**
+ * 모든 admin 뮤테이션은 공개 데이터(status/내용)를 바꾸므로, admin 콘솔과 함께
+ * 공개 페이지 캐시까지 즉시 무효화한다. 덕분에 공개 페이지의 revalidate를 길게(1일)
+ * 잡아 캐시 적중률을 높이면서도 수정은 곧바로 반영된다.
+ */
 function revalidateConsole() {
+  // admin 콘솔
   revalidatePath('/admin');
   revalidatePath('/admin/review');
   revalidatePath('/admin/data');
+  // 공개: 홈/캘린더의 unstable_cache(데이터 캐시) 태그 무효화
+  revalidateTag('shows');
+  revalidateTag('festivals');
+  // 공개: 상세 페이지 ISR(풀 라우트 캐시) 무효화.
+  // 뮤테이션 빈도가 낮아 [id] 전체를 무효화해도 무방(다음 방문 시 재생성).
+  revalidatePath('/shows/[id]', 'page');
+  revalidatePath('/festivals/[id]', 'page');
+  revalidatePath('/artists/[id]', 'page');
 }
 
 /** Parse a 'YYYY.MM.DD' (or '-'/'/' separated) string to a UTC midnight Date. */
