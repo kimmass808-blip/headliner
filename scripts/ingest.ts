@@ -413,13 +413,18 @@ async function upsertShow(
   const sortedSessions = [...sessionList].sort((a, b) => a.date.localeCompare(b.date));
   const firstSession = sortedSessions[0];
 
+  // 페스티벌 내부 공연은 장소를 부모 페스티벌에서 상속(읽기 시점 fallback)하므로,
+  // 자기 venue가 없어도 venue 차원을 충족한 것으로 간주한다. 그러지 않으면 라인업
+  // 공연이 'venue 누락'으로 completeness가 깎이고 리뷰 큐를 오염시킨다.
+  // (참고: docs/festival-show-separation-plan.md / lib/festivalInheritance.ts)
+  const hasVenue = !!venueId || !!festivalId;
   const missing: string[] = [];
   if (sortedSessions.length === 0) missing.push('date');
-  if (!venueId) missing.push('venue');
+  if (!hasVenue) missing.push('venue');
   if (artistIds.length === 0) missing.push('artists');
   let comp = 0;
   if (sortedSessions.length > 0) comp++;
-  if (venueId) comp++;
+  if (hasVenue) comp++;
   if (artistIds.length > 0) comp++;
 
   const data = {
