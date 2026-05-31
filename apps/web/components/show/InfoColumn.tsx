@@ -97,15 +97,15 @@ export function InfoColumn(props: InfoColumnProps) {
         </div>
       ) : null}
 
-      {/* 아티스트 헤드라인 */}
+      {/* 공연 타이틀 헤드라인 */}
       <h1 className="mt-5 text-[44px] font-bold leading-[0.95] tracking-[-0.035em] text-paper sm:text-[52px] lg:text-[60px]">
-        {artistsLabel || title || '공연'}
+        {title || artistsLabel || '공연'}
       </h1>
 
-      {/* 공연 타이틀 (서브 라인) */}
-      {title && artistsLabel ? (
+      {/* 아티스트 (서브 라인) */}
+      {artistsLabel && title ? (
         <div className="mt-3 text-[20px] font-medium leading-tight tracking-[-0.015em] text-paper/70 sm:text-[22px]">
-          {title}
+          {artistsLabel}
         </div>
       ) : null}
 

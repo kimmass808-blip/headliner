@@ -8,11 +8,8 @@ import { prisma } from '@mft/db';
 import { HomeHeader } from '../components/home/Header';
 import { HomeHero } from '../components/home/Hero';
 import { HomeSearchBar } from '../components/home/SearchBar';
-import {
-  UpcomingSection,
-  type UpcomingItem,
-} from '../components/home/UpcomingSection';
 import { formatWeekdayShort } from '../components/home/PosterCard';
+import { mapFestivalToItem, mapShowToItem } from '../lib/listings';
 import {
   ResultsBar,
   type SearchFilterType,
@@ -110,58 +107,16 @@ export default async function HomePage({
       startOfToday.getTime(),
     );
 
-    // 페스티벌 + 단독공연을 PosterCard 형식으로 통일 → 날짜순 인터리브 → 상위 8건
-    const festivalItems: UpcomingItem[] = upcomingFestivals
-      .filter((f) => f.startDate)
-      .map((f) => {
-        const start = new Date(f.startDate!);
-        const end = f.endDate ? new Date(f.endDate) : null;
-        const isMultiDay = end && end.getTime() !== start.getTime();
-        const dayLabel = isMultiDay
-          ? (() => {
-              const diff = Math.round((end!.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-              return `${diff} DAYS`;
-            })()
-          : formatWeekdayShort(start);
-        return {
-          key: `f:${f.id}`,
-          href: `/festivals/${f.id}`,
-          type: 'FESTIVAL' as const,
-          imageUrl: f.posterImageUrl,
-          primaryName: f.name,
-          secondaryTitle: null,
-          city: null,
-          venueName: f.locationText ?? null,
-          date: start,
-          dayLabel,
-        };
-      });
+    // 공연/페스티벌을 각각 별도 섹션으로 분리. 매핑·정렬 로직은
+    // /shows·/festivals 리스트 페이지와 lib/listings에서 공유.
+    const showItems: ShowsGridItem[] = upcomingShows
+      .map(mapShowToItem)
+      .sort((a, b) => (a.date?.getTime() ?? 0) - (b.date?.getTime() ?? 0));
+    const festivalItems: ShowsGridItem[] = upcomingFestivals
+      .map(mapFestivalToItem)
+      .sort((a, b) => (a.date?.getTime() ?? 0) - (b.date?.getTime() ?? 0));
 
-    const showItems: UpcomingItem[] = upcomingShows
-      .filter((s) => s.firstSessionDate)
-      .map((s) => {
-        const d = new Date(s.firstSessionDate!);
-        const primaryName =
-          s.artists[0]?.canonicalName ?? s.title ?? '공연';
-        const secondaryTitle =
-          s.artists.length > 0 && s.title ? s.title : null;
-        return {
-          key: `s:${s.id}`,
-          href: `/shows/${s.id}`,
-          type: 'SHOW' as const,
-          imageUrl: s.imageUrl,
-          primaryName,
-          secondaryTitle,
-          city: s.venue?.region ?? null,
-          venueName: s.venue?.name ?? null,
-          date: d,
-          dayLabel: formatWeekdayShort(d),
-        };
-      });
-
-    const items: UpcomingItem[] = [...festivalItems, ...showItems]
-      .sort((a, b) => (a.date?.getTime() ?? 0) - (b.date?.getTime() ?? 0))
-      .slice(0, 8);
+    const year = new Date().getFullYear();
 
     return (
       <div className="min-h-screen bg-ink-900 font-sans text-paper">
@@ -173,7 +128,22 @@ export default async function HomePage({
               <HomeSearchBar />
             </div>
           </section>
-          <UpcomingSection items={items} />
+          <ShowsGrid
+            items={showItems}
+            kicker={`UPCOMING / ${year}`}
+            title="다가오는 공연"
+            initialLimit={0}
+            emptyLabel="예정된 공연이 없습니다."
+            headerAction={{ label: '전체 보기', href: '/shows' }}
+          />
+          <ShowsGrid
+            items={festivalItems}
+            kicker={`FESTIVALS / ${year}`}
+            title="다가오는 페스티벌"
+            initialLimit={0}
+            emptyLabel="예정된 페스티벌이 없습니다."
+            headerAction={{ label: '전체 보기', href: '/festivals' }}
+          />
         </main>
       </div>
     );
