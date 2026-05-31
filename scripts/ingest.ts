@@ -118,7 +118,26 @@ const FestivalInfoEntity = z.object({
   order: z.number().int().optional(),
 });
 
-const Entity = z.discriminatedUnion('kind', [ShowEntity, FestivalEntity, FestivalInfoEntity]);
+// 아티스트 계정 크롤 시 "페스티벌 출연"은 새 Show를 만들지 않고, 기존 페스티벌 Show에
+// 셋리스트만 enrich 한다(festivalKey + artistName + date 로 매칭). 매칭 실패 시 skip(새로
+// 안 만듦). 라인업 원천은 페스티벌 계정이고, 셋리스트는 페스티벌 포스터엔 없는, 아티스트
+// 글에서만 얻는 정보다. Setlist/Song 모델은 이미 존재하므로 추가 스키마 없이 채운다.
+const SetlistSongInput = z.object({
+  title: z.string().min(1),
+  isEncore: z.boolean().optional(),
+  coverOf: z.string().optional(),
+});
+
+const SetlistEntity = z.object({
+  kind: z.literal('setlist'),
+  festivalKey: z.string().min(1),
+  artistName: z.string().min(1),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  songs: z.array(SetlistSongInput).min(1),
+  sourceNotes: z.string().optional(),
+});
+
+const Entity = z.discriminatedUnion('kind', [ShowEntity, FestivalEntity, FestivalInfoEntity, SetlistEntity]);
 
 const Source = z.object({
   type: z.enum(['ig_post', 'web_page', 'manual']).default('ig_post'),
@@ -139,6 +158,7 @@ type Payload = z.infer<typeof Payload>;
 type ShowInput = z.infer<typeof ShowEntity>;
 type FestivalInput = z.infer<typeof FestivalEntity>;
 type FestivalInfoInput = z.infer<typeof FestivalInfoEntity>;
+type SetlistInput = z.infer<typeof SetlistEntity>;
 
 // ---------- key helpers (shared with dedupe scripts) ----------
 
@@ -182,6 +202,7 @@ type RunStats = {
   artists: { found: number; created: number };
   venues: { found: number; created: number };
   festivalInfo: { inserted: number; updated: number };
+  setlists: { added: number; skipped: number };
   imagesUploaded: number;
   imageBytesIn: number;
   imageBytesOut: number;
@@ -556,6 +577,72 @@ async function upsertFestivalInfo(
   return created.id;
 }
 
+// 아티스트 계정 크롤의 "페스티벌 출연" — 기존 페스티벌 Show를 찾아 셋리스트만 채운다.
+// 매칭: festivalKey(canonicalKey) + artistName(canonical) + date(session). 매칭 실패 시
+// 새로 만들지 않고 skip. 이미 셋리스트가 있으면 운영자 편집 보호를 위해 덮어쓰지 않고 skip.
+async function attachSetlist(e: SetlistInput, stats: RunStats): Promise<void> {
+  const festival = await prisma.festival.findUnique({ where: { canonicalKey: e.festivalKey } });
+  if (!festival) {
+    stats.warnings.push(`setlist: festivalKey "${e.festivalKey}" not found; skipped`);
+    stats.setlists.skipped++;
+    return;
+  }
+  const canon = canonicalizeArtistName(e.artistName);
+  const artist = canon.key
+    ? await prisma.artist.findUnique({ where: { canonicalKey: canon.key } })
+    : null;
+  if (!artist) {
+    stats.warnings.push(`setlist: artist "${e.artistName}" not found; skipped (enrich-only, not created)`);
+    stats.setlists.skipped++;
+    return;
+  }
+  const date = new Date(e.date);
+
+  // 같은 페스티벌 + 같은 아티스트 + 같은 날짜 세션을 가진 기존 Show.
+  const show = await prisma.show.findFirst({
+    where: {
+      festivalId: festival.id,
+      artists: { some: { id: artist.id } },
+      sessions: { some: { date } },
+    },
+    include: { setlist: { select: { id: true } } },
+  });
+  if (!show) {
+    stats.warnings.push(
+      `setlist: no existing show for ${festival.canonicalKey} / ${artist.canonicalName} / ${e.date}; skipped (enrich-only, not created)`,
+    );
+    stats.setlists.skipped++;
+    return;
+  }
+  // 비파괴: 이미 셋리스트가 있으면 덮어쓰지 않는다(운영자 편집은 /admin/setlists에서).
+  if (show.setlist) {
+    stats.warnings.push(`setlist: show ${show.id} 이미 셋리스트 보유; skip(덮어쓰지 않음)`);
+    stats.setlists.skipped++;
+    return;
+  }
+
+  if (DRY) {
+    stats.warnings.push(`(dry-run) would attach setlist (${e.songs.length} songs) to show ${show.id} (${artist.canonicalName} @ ${e.date})`);
+    return;
+  }
+
+  await prisma.setlist.create({
+    data: {
+      showId: show.id,
+      sourceNotes: e.sourceNotes ?? null,
+      songs: {
+        create: e.songs.map((s, i) => ({
+          title: s.title,
+          order: i,
+          isEncore: s.isEncore ?? false,
+          coverOf: s.coverOf ?? null,
+        })),
+      },
+    },
+  });
+  stats.setlists.added++;
+}
+
 // ---------- main ----------
 
 async function loadPayload(): Promise<Payload> {
@@ -598,6 +685,7 @@ async function main() {
     artists: { found: 0, created: 0 },
     venues: { found: 0, created: 0 },
     festivalInfo: { inserted: 0, updated: 0 },
+    setlists: { added: 0, skipped: 0 },
     imagesUploaded: 0,
     imageBytesIn: 0,
     imageBytesOut: 0,
@@ -622,6 +710,13 @@ async function main() {
   for (const e of payload.entities) {
     if (e.kind === 'festival_info') {
       await upsertFestivalInfo(e, payload.source, stats);
+    }
+  }
+
+  // Pass 4: setlist — 기존 페스티벌 Show에 셋리스트만 enrich(새로 만들지 않음). 쇼 이후 실행.
+  for (const e of payload.entities) {
+    if (e.kind === 'setlist') {
+      await attachSetlist(e, stats);
     }
   }
 
@@ -654,6 +749,7 @@ async function main() {
   console.log(`artists:   found=${stats.artists.found} created=${stats.artists.created}`);
   console.log(`venues:    found=${stats.venues.found} created=${stats.venues.created}`);
   console.log(`info:      ins=${stats.festivalInfo.inserted} upd=${stats.festivalInfo.updated}`);
+  console.log(`setlists:  added=${stats.setlists.added} skip=${stats.setlists.skipped}`);
   console.log(
     `images:    uploaded=${stats.imagesUploaded}  ` +
       `${(stats.imageBytesIn / 1024).toFixed(0)}KB -> ${(stats.imageBytesOut / 1024).toFixed(0)}KB`,
