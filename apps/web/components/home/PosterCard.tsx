@@ -45,7 +45,9 @@ export function PosterCard(props: HomePosterCardProps) {
   // 그리드 카드 — 3:4, 보통 한 컬럼 너비 280~360px. retina 고려해 600px 요청.
   const src = getImageUrl(imageUrl, { width: 600, quality: 78 });
   // 반응형: 모바일 2열(~45vw) ~ 데스크탑 다열(~320px). 화면/DPR에 맞춰 선택.
-  const srcSet = getImageSrcSet(imageUrl, [300, 450, 600], { quality: 78 });
+  // 레티나 데스크탑(312px×2≈624)을 위해 750·900 후보까지 제공 — 고DPR 화면만 큰 걸 받고
+  // 저DPR/모바일은 작은 후보 유지(불필요한 대역폭 없음). 원본 webp ≤1440px라 안전.
+  const srcSet = getImageSrcSet(imageUrl, [300, 450, 600, 750, 900], { quality: 78 });
 
   return (
     <Link href={href} className="poster-card group block">
