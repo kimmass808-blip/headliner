@@ -12,10 +12,16 @@ interface InfoLightboxProps {
 // IG 캐러셀 원본 이미지를 좌/우 내비게이션으로 보여주는 라이트박스 오버레이.
 export function InfoLightbox({ images, title, onClose }: InfoLightboxProps) {
   const [idx, setIdx] = useState(0);
+  const [loaded, setLoaded] = useState(false);
   const total = images.length;
 
   const prev = useCallback(() => setIdx((i) => (i - 1 + total) % total), [total]);
   const next = useCallback(() => setIdx((i) => (i + 1) % total), [total]);
+
+  // 이미지를 넘길 때마다 로드 상태를 초기화해 이전 이미지 잔상을 비운다.
+  useEffect(() => {
+    setLoaded(false);
+  }, [idx]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -61,12 +67,25 @@ export function InfoLightbox({ images, title, onClose }: InfoLightboxProps) {
           </button>
         ) : null}
 
+        {!loaded ? (
+          <div
+            className="absolute left-1/2 top-1/2 z-0 -translate-x-1/2 -translate-y-1/2"
+            aria-hidden="true"
+          >
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-paper/30 border-t-paper/80" />
+          </div>
+        ) : null}
+
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
+          key={idx}
           src={src ?? ''}
           alt={`${title} (${idx + 1}/${total})`}
           decoding="async"
-          className="mx-auto max-h-[85vh] w-auto object-contain"
+          onLoad={() => setLoaded(true)}
+          className={`mx-auto max-h-[85vh] w-auto object-contain transition-opacity duration-200 ${
+            loaded ? 'opacity-100' : 'opacity-0'
+          }`}
         />
 
         {total > 1 ? (
