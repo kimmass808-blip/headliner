@@ -28,6 +28,15 @@ export function NavigationOverlay() {
     }
   }, [routeKey]);
 
+  // 안전장치: 같은 URL로 가는 검색(예: 동일 검색어 재검색)은 라우트가 안 바뀌어
+  // 위 effect가 해제하지 못한다 → 스피너 영구 잔존 방지용 타임아웃.
+  // 정상 이동은 라우트 변경으로 더 빨리 해제되므로 이 타임아웃엔 도달하지 않는다.
+  useEffect(() => {
+    if (!isNavigating) return;
+    const t = setTimeout(() => setIsNavigating(false), 2500);
+    return () => clearTimeout(t);
+  }, [isNavigating]);
+
   // 클릭/submit으로 네비게이션 시작 감지
   useEffect(() => {
     function onClick(e: MouseEvent) {

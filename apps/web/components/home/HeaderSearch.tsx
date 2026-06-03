@@ -80,8 +80,10 @@ export function HeaderSearch() {
         tabIndex={open ? 0 : -1}
         aria-hidden={!open}
         className={
-          'min-w-0 flex-1 bg-transparent pl-4 text-[13px] text-paper outline-none placeholder:text-dim ' +
-          (open ? '' : 'pointer-events-none w-0')
+          // 폰트 16px: iOS가 16px 미만 입력창 포커스 시 화면을 자동 확대하는 것 방지.
+          'min-w-0 flex-1 bg-transparent text-[16px] text-paper outline-none placeholder:text-dim ' +
+          // 닫힘: 패딩까지 0으로 접어 아이콘 버튼이 밀리지 않게.
+          (open ? 'pl-4' : 'pointer-events-none w-0 p-0')
         }
       />
       <button
