@@ -39,15 +39,13 @@ export function HeaderSearch() {
     if (open) inputRef.current?.focus();
   }, [open]);
 
+  // submit은 "실제 이동"이 일어날 때만 발생해야 한다.
+  // (NavigationOverlay가 document submit을 감지해 스피너를 띄우고, 라우트 변경
+  //  시에만 해제하므로 — 이동 없는 submit은 무한 로딩을 유발한다.)
   function submit(e: FormEvent) {
     e.preventDefault();
-    // 닫힌 상태에서 누르면 펼치기만(이후 effect가 포커스).
-    if (!open) {
-      setOpen(true);
-      return;
-    }
     const trimmed = q.trim();
-    if (!trimmed) return; // 펼친 채 유지
+    if (!trimmed) return; // disabled로 막혀 사실상 도달하지 않음(방어용)
     router.push(`/?q=${encodeURIComponent(trimmed)}`);
     setOpen(false);
   }
@@ -87,7 +85,12 @@ export function HeaderSearch() {
         }
       />
       <button
-        type="submit"
+        type={open ? 'submit' : 'button'}
+        // 닫힘: 펼치기만(submit 아님). 펼침+빈 검색어: disabled로 빈 submit 차단.
+        disabled={open && !q.trim()}
+        onClick={() => {
+          if (!open) setOpen(true);
+        }}
         aria-label="검색"
         className="flex h-9 w-9 shrink-0 items-center justify-center text-paper/80 transition hover:text-paper"
       >
