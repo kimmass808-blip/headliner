@@ -51,11 +51,16 @@ export function InfoColumn(props: InfoColumnProps) {
   const last  = sessions.length > 0 ? sessions[sessions.length - 1]! : null;
   const isMulti = sessions.length > 1;
 
-  // v6: Collapse ticket rows when all sessions share the same URL.
+  // 모든 회차의 예매 정보(예매처 URL·선예매·일반예매 오픈)가 동일하면 한 줄로 합친다.
+  // 일자만 다르고 예매가 같은 다회차 공연은 회차별 반복 대신 단일 블록으로 노출.
   const ticketsAreUniform =
-    isMulti && first?.ticketUrl
-      ? sessions.every((s) => s.ticketUrl === first.ticketUrl)
-      : false;
+    isMulti &&
+    sessions.every(
+      (s) =>
+        s.ticketUrl === first?.ticketUrl &&
+        s.ticketOpenLabel === first?.ticketOpenLabel &&
+        s.presaleOpenLabel === first?.presaleOpenLabel,
+    );
 
   return (
     <div className="flex flex-col">
