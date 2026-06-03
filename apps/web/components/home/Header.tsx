@@ -5,25 +5,8 @@
 
 import Link from 'next/link';
 import { MobileNav } from './MobileNav';
+import { HeaderSearch } from './HeaderSearch';
 import { NAV_ITEMS } from './nav-items';
-
-function SearchIcon({ className = '' }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <circle cx="11" cy="11" r="7.5" />
-      <path d="M20 20l-4-4" />
-    </svg>
-  );
-}
 
 export function HomeHeader() {
   return (
@@ -47,13 +30,7 @@ export function HomeHeader() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <Link
-            href="/#search"
-            aria-label="검색"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-paper/80 transition hover:border-white/30 hover:text-paper"
-          >
-            <SearchIcon className="h-4 w-4" />
-          </Link>
+          <HeaderSearch />
           <MobileNav />
         </div>
       </div>
