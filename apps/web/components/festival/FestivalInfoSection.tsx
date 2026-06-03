@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { getImageUrl } from '../../lib/imageUrl';
 import { InfoLightbox } from './InfoLightbox';
 
-type InfoCategory = 'MAP' | 'TIMETABLE' | 'ACCESS' | 'RULES' | 'FAQ' | 'GOODS' | 'AMENITY' | 'NOTICE';
+type InfoCategory = 'MAP' | 'TIMETABLE' | 'ACCESS' | 'RULES' | 'FAQ' | 'GOODS' | 'AMENITY' | 'TICKET' | 'PROMO' | 'NOTICE';
 
 export interface FestivalInfoPostData {
   id: string;
@@ -21,6 +21,7 @@ export interface FestivalInfoPostData {
 
 // 카테고리 한글 라벨 + 표시 순서
 const CATEGORY_LABEL: Record<InfoCategory, string> = {
+  TICKET: '티켓·예매',
   MAP: '사이트맵·배치도',
   TIMETABLE: '타임테이블',
   ACCESS: '교통·주차',
@@ -28,10 +29,11 @@ const CATEGORY_LABEL: Record<InfoCategory, string> = {
   FAQ: 'FAQ',
   GOODS: 'MD·푸드',
   AMENITY: '편의시설',
+  PROMO: '프로모션·파트너',
   NOTICE: '안내',
 };
 
-const CATEGORY_ORDER: InfoCategory[] = ['MAP', 'TIMETABLE', 'ACCESS', 'RULES', 'FAQ', 'GOODS', 'AMENITY', 'NOTICE'];
+const CATEGORY_ORDER: InfoCategory[] = ['TICKET', 'MAP', 'TIMETABLE', 'ACCESS', 'RULES', 'FAQ', 'GOODS', 'AMENITY', 'PROMO', 'NOTICE'];
 
 export function FestivalInfoSection({ posts }: { posts: FestivalInfoPostData[] }) {
   const [active, setActive] = useState<FestivalInfoPostData | null>(null);

@@ -22,6 +22,8 @@ export interface ShowSessionView {
   startTime: string | null; // '19:00'
   ticketUrl: string | null;
   ticketLabel: string | null;
+  ticketOpenLabel: string | null; // '예매 오픈' 표시용. '6.15 (목) 20:00' | null
+  presaleOpenLabel: string | null; // '선예매' 표시용. '6.15 (목) 20:00' | null
 }
 
 export interface InfoColumnProps {
@@ -162,37 +164,58 @@ export function InfoColumn(props: InfoColumnProps) {
           </MetaRow>
         ) : null}
 
-        {/* TICKET — single | uniform multi (1 row) | per-session multi (N rows) */}
-        {first?.ticketUrl && (!isMulti || ticketsAreUniform) ? (
+        {/* TICKET — single | uniform multi (1 row) | per-session multi (N rows).
+            예매처 링크가 없어도 예매 오픈일이 있으면 행을 표시. */}
+        {first && (first.ticketUrl || first.ticketOpenLabel || first.presaleOpenLabel) && (!isMulti || ticketsAreUniform) ? (
           <MetaRow label="TICKET">
-            <a
-              href={first.ticketUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="group inline-flex items-center gap-2 text-paper/85 transition hover:text-paper"
-            >
-              {first.ticketLabel ?? '예매 페이지'}
-              <ArrowUpRight className="h-4 w-4 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-            </a>
+            {first.ticketUrl ? (
+              <a
+                href={first.ticketUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="group inline-flex items-center gap-2 text-paper/85 transition hover:text-paper"
+              >
+                {first.ticketLabel ?? '예매 페이지'}
+                <ArrowUpRight className="h-4 w-4 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+              </a>
+            ) : null}
+            {first.presaleOpenLabel ? (
+              <div className="mt-1 text-[13px] text-paper/45">
+                선예매 {first.presaleOpenLabel}
+              </div>
+            ) : null}
+            {first.ticketOpenLabel ? (
+              <div className="mt-1 text-[13px] text-paper/45">
+                예매 오픈 {first.ticketOpenLabel}
+              </div>
+            ) : null}
           </MetaRow>
         ) : null}
-        {isMulti && !ticketsAreUniform && sessions.some((s) => s.ticketUrl) ? (
+        {isMulti && !ticketsAreUniform && sessions.some((s) => s.ticketUrl || s.ticketOpenLabel || s.presaleOpenLabel) ? (
           <MetaRow label="TICKET">
             <ul className="flex flex-col gap-1.5">
               {sessions
-                .filter((s) => s.ticketUrl)
+                .filter((s) => s.ticketUrl || s.ticketOpenLabel || s.presaleOpenLabel)
                 .map((s) => (
                   <li key={s.date} className="flex flex-wrap items-baseline gap-x-2">
                     <span className="text-paper/55">{s.dayKr}</span>
-                    <a
-                      href={s.ticketUrl!}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="group inline-flex items-center gap-1.5 text-paper/85 transition hover:text-paper"
-                    >
-                      {s.ticketLabel ?? '예매 페이지'}
-                      <ArrowUpRight className="h-3.5 w-3.5 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                    </a>
+                    {s.ticketUrl ? (
+                      <a
+                        href={s.ticketUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="group inline-flex items-center gap-1.5 text-paper/85 transition hover:text-paper"
+                      >
+                        {s.ticketLabel ?? '예매 페이지'}
+                        <ArrowUpRight className="h-3.5 w-3.5 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                      </a>
+                    ) : null}
+                    {s.presaleOpenLabel ? (
+                      <span className="text-[13px] text-paper/45">선예매 {s.presaleOpenLabel}</span>
+                    ) : null}
+                    {s.ticketOpenLabel ? (
+                      <span className="text-[13px] text-paper/45">예매 오픈 {s.ticketOpenLabel}</span>
+                    ) : null}
                   </li>
                 ))}
             </ul>

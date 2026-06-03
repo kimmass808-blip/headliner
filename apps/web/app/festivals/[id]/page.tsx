@@ -17,6 +17,8 @@ import {
 } from '../../../components/common/LineupSection';
 import { FestivalInfoSection } from '../../../components/festival/FestivalInfoSection';
 import { ymd } from '../../../lib/calendar';
+import { formatTicketOpen } from '../../../lib/ticketOpen';
+import { ticketVendorFromUrl } from '@mft/shared';
 
 export const revalidate = 86400; // 1일. 관리자 수정 시 actions.ts가 즉시 무효화.
 // 동적 세그먼트의 런타임 ISR 활성화: 빌드 시엔 아무 경로도 프리렌더하지 않고,
@@ -38,19 +40,6 @@ function fmt(d: Date): string {
 
 function fmtMd(d: Date): string {
   return `${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function deriveTicketLabel(url: string): string {
-  try {
-    const host = new URL(url).hostname.replace(/^www\./, '');
-    if (host.includes('yes24')) return 'YES24 티켓';
-    if (host.includes('interpark')) return '인터파크 티켓';
-    if (host.includes('melon')) return '멜론 티켓';
-    if (host.includes('ticketlink')) return '티켓링크';
-    return '예매 페이지';
-  } catch {
-    return '예매 페이지';
-  }
 }
 
 export default async function FestivalDetailPage({
@@ -167,7 +156,8 @@ export default async function FestivalDetailPage({
               venueName={venueName}
               city={city}
               ticketUrl={festival.ticketUrl}
-              ticketLabel={festival.ticketUrl ? deriveTicketLabel(festival.ticketUrl) : null}
+              ticketLabel={festival.ticketUrl ? (ticketVendorFromUrl(festival.ticketUrl) ?? '예매 페이지') : null}
+              ticketOpenLabel={formatTicketOpen(festival.ticketOpenAt)}
               officialUrl={festival.officialUrl}
             />
           </div>

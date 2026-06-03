@@ -60,6 +60,7 @@ const ArtistInput = z.object({
   name: z.string().min(1),
   igHandle: z.string().optional(),
   aliases: z.array(z.string()).optional(),
+  imageSource: z.string().optional(), // 프로필 사진(로컬경로/URL) → Storage 업로드, Artist.imageUrl이 null일 때만
 });
 
 const SessionInput = z.object({
@@ -67,7 +68,8 @@ const SessionInput = z.object({
   startTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   endTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   ticketUrl: z.string().url().optional(),
-  ticketOpenAt: z.string().optional(), // ISO datetime
+  ticketOpenAt: z.string().optional(), // ISO datetime (일반 예매 오픈)
+  presaleOpenAt: z.string().optional(), // ISO datetime (선예매/카드사 오픈 — 일반보다 앞섬)
   capacity: z.number().int().optional(),
   notes: z.string().optional(),
 });
@@ -101,6 +103,7 @@ const FestivalEntity = z.object({
   locationText: z.string().optional(),
   officialUrl: z.string().url().optional(),
   ticketUrl: z.string().url().optional(),
+  ticketOpenAt: z.string().optional(), // ISO datetime — 페스티벌 통합 예매 오픈
   posterImageSource: z.string().optional(),
   description: z.string().optional(),
   igHandle: z.string().optional(),
@@ -109,7 +112,7 @@ const FestivalEntity = z.object({
 const FestivalInfoEntity = z.object({
   kind: z.literal('festival_info'),
   festivalKey: z.string(),
-  category: z.enum(['MAP', 'TIMETABLE', 'ACCESS', 'RULES', 'FAQ', 'GOODS', 'AMENITY', 'NOTICE']),
+  category: z.enum(['MAP', 'TIMETABLE', 'ACCESS', 'RULES', 'FAQ', 'GOODS', 'AMENITY', 'TICKET', 'PROMO', 'NOTICE']),
   title: z.string().optional(),
   sourcePostUrl: z.string().url().optional(),
   imageSources: z.array(z.string()).default([]),
@@ -147,11 +150,20 @@ const Source = z.object({
   capturedAt: z.string().optional(),
 });
 
+// 크롤 중 발견한 추가 핸들을 워치리스트(seedAccount)에 등록하기 위한 선택 입력.
+// 라인업 아티스트(artists[].igHandle)는 자동 등록되므로, 여기엔 캡션 멘션 등 show에
+// 묶이지 않은 핸들이나 festival/venue 핸들만 넣으면 된다.
+const SeedInput = z.object({
+  handle: z.string().min(1),
+  kind: z.enum(['artist', 'festival', 'venue']).optional(), // 기본 'artist'
+});
+
 const Payload = z.object({
   source: Source,
   entities: z.array(Entity).default([]),
   notes: z.string().optional(),
   reviewerConfidence: z.enum(['high', 'medium', 'low']).optional(),
+  seeds: z.array(SeedInput).optional(),
 });
 
 type Payload = z.infer<typeof Payload>;
@@ -203,6 +215,7 @@ type RunStats = {
   venues: { found: number; created: number };
   festivalInfo: { inserted: number; updated: number };
   setlists: { added: number; skipped: number };
+  seeds: { registered: number; skipped: number };
   imagesUploaded: number;
   imageBytesIn: number;
   imageBytesOut: number;
@@ -274,14 +287,28 @@ async function upsertFestival(f: FestivalInput, stats: RunStats): Promise<string
     locationText: f.locationText ?? undefined,
     officialUrl: f.officialUrl ?? undefined,
     ticketUrl: f.ticketUrl ?? undefined,
+    ticketOpenAt: f.ticketOpenAt ? new Date(f.ticketOpenAt) : undefined,
     posterImageUrl: posterUrl ?? undefined,
     description: f.description ?? undefined,
-    igHandle: f.igHandle ?? undefined,
+    igHandle: f.igHandle ? normalizeHandle(f.igHandle) : undefined,
   };
 
   if (DRY) {
     stats.warnings.push(`(dry-run) would upsert festival ${key}`);
     return null;
+  }
+
+  // Festival.igHandle은 @unique이나 한 계정이 여러 해(연도별 festival)를 운영하므로
+  // 충돌이 정상이다. 이미 다른 연도 festival이 점유 중이면 이 행엔 igHandle을 비운다.
+  if (data.igHandle) {
+    const holder = await prisma.festival.findUnique({
+      where: { igHandle: data.igHandle },
+      select: { canonicalKey: true },
+    });
+    if (holder && holder.canonicalKey !== key) {
+      stats.warnings.push(`festival igHandle "@${data.igHandle}" already held by ${holder.canonicalKey}; skip for ${key}`);
+      data.igHandle = undefined;
+    }
   }
 
   const existing = await prisma.festival.findUnique({ where: { canonicalKey: key } });
@@ -294,6 +321,7 @@ async function upsertFestival(f: FestivalInput, stats: RunStats): Promise<string
     if (!existing.locationText && data.locationText) patch.locationText = data.locationText;
     if (!existing.officialUrl && data.officialUrl) patch.officialUrl = data.officialUrl;
     if (!existing.ticketUrl && data.ticketUrl) patch.ticketUrl = data.ticketUrl;
+    if (!existing.ticketOpenAt && data.ticketOpenAt) patch.ticketOpenAt = data.ticketOpenAt;
     if (!existing.posterImageUrl && data.posterImageUrl) patch.posterImageUrl = data.posterImageUrl;
     if (!existing.description && data.description) patch.description = data.description;
     if (!existing.igHandle && data.igHandle) patch.igHandle = data.igHandle;
@@ -315,6 +343,7 @@ async function upsertFestival(f: FestivalInput, stats: RunStats): Promise<string
       ...data,
       completeness: Math.min(comp, 2),
       needsReview: comp < 2,
+      status: 'APPROVED', // 크롤 import 는 곧바로 게시(수동 검수 없이 공개)
     },
   });
   stats.festivals.inserted++;
@@ -350,26 +379,45 @@ async function findOrCreateArtist(rawInput: ArtistInput, stats: RunStats): Promi
   const canon = canonicalizeArtistName(input.name);
   if (!canon.key) return null;
   if (DRY) return null;
-  const existing = await prisma.artist.findUnique({ where: { canonicalKey: canon.key } });
+  let existing = await prisma.artist.findUnique({ where: { canonicalKey: canon.key } });
+  // canonicalKey 미스 + igHandle 보유 시 igHandle로 재조회(표기 불일치로 같은 계정이
+  // 다른 이름으로 이미 존재하는 경우). 매칭되면 그 행에 현재 표기를 alias로 병합한다.
+  if (!existing && input.igHandle) {
+    existing = await prisma.artist.findUnique({ where: { igHandle: normalizeHandle(input.igHandle) } });
+    if (existing) stats.warnings.push(`artist igHandle match: "${input.name}" → 기존 "${existing.canonicalName}" (@${normalizeHandle(input.igHandle)})`);
+  }
   const incomingAliases = new Set([input.name, ...(input.aliases ?? [])]);
   if (existing) {
     incomingAliases.delete(existing.canonicalName);
     const merged = Array.from(new Set([...existing.aliases, ...incomingAliases]));
     const patch: any = {};
     if (merged.length !== existing.aliases.length) patch.aliases = merged;
-    if (!existing.igHandle && input.igHandle) patch.igHandle = input.igHandle.toLowerCase();
+    if (!existing.igHandle && input.igHandle) {
+      // igHandle은 @unique — 다른 아티스트가 이미 점유 중이면 부여하지 않는다(충돌 방지).
+      const h = normalizeHandle(input.igHandle);
+      const holder = await prisma.artist.findUnique({ where: { igHandle: h }, select: { id: true } });
+      if (!holder) patch.igHandle = h;
+      else if (holder.id !== existing.id) stats.warnings.push(`artist igHandle "@${h}" already held; skip for "${existing.canonicalName}"`);
+    }
+    // 프로필 사진: Artist.imageUrl이 비어 있을 때만 채운다(Spotify enrichment 아트워크 보존).
+    if (!existing.imageUrl && input.imageSource) {
+      const url = await maybeUploadImage(input.imageSource, stats);
+      if (url) patch.imageUrl = url;
+    }
     if (Object.keys(patch).length) await prisma.artist.update({ where: { id: existing.id }, data: patch });
     stats.artists.found++;
     return existing.id;
   }
   // Create -- igHandle is unique so suppress collisions
   try {
+    const imageUrl = await maybeUploadImage(input.imageSource, stats);
     const created = await prisma.artist.create({
       data: {
         canonicalName: input.name,
         canonicalKey: canon.key,
         aliases: Array.from(incomingAliases).filter((a) => a !== input.name),
-        igHandle: input.igHandle?.toLowerCase(),
+        igHandle: input.igHandle ? normalizeHandle(input.igHandle) : undefined,
+        imageUrl: imageUrl ?? undefined,
       },
     });
     stats.artists.created++;
@@ -381,6 +429,57 @@ async function findOrCreateArtist(rawInput: ArtistInput, stats: RunStats): Promi
 }
 
 type ArtistInput = z.infer<typeof ArtistInput>;
+
+/**
+ * 크롤 중 발견한 IG 핸들을 워치리스트(seedAccount)에 등록한다.
+ * - 이미 존재하면(어떤 status든) skip — 운영자의 기존 rejected/dead 결정을 존중.
+ * - 크롤 대상 본인 계정(source)은 skip.
+ * - 잘못된 핸들 형식은 skip.
+ * addedBy='ingest'로 provenance를 남긴다(crawler snowball과 구분).
+ */
+function normalizeHandle(raw: string): string {
+  // 선행 '@'를 모두 제거(복붙·중복으로 '@@'가 들어오는 경우 포함) + 소문자화.
+  return raw.trim().replace(/^@+/, '').toLowerCase();
+}
+
+async function registerSeed(
+  rawHandle: string,
+  kind: 'artist' | 'festival' | 'venue',
+  sourceHandle: string | null,
+  stats: RunStats,
+): Promise<void> {
+  const handle = normalizeHandle(rawHandle);
+  if (!handle || !/^[a-z0-9._]+$/.test(handle)) return; // 해시태그·이메일·빈값 등 skip
+  if (sourceHandle && handle === normalizeHandle(sourceHandle)) return; // 자기 자신 skip
+
+  const existing = await prisma.seedAccount.findUnique({
+    where: { igHandle: handle },
+    select: { igHandle: true },
+  });
+  if (existing) {
+    stats.seeds.skipped++;
+    return;
+  }
+  if (DRY) {
+    stats.warnings.push(`(dry-run) would register watchlist seed @${handle} (${kind})`);
+    return;
+  }
+  try {
+    await prisma.seedAccount.create({
+      data: {
+        igHandle: handle,
+        kind,
+        status: 'pending',
+        addedBy: 'ingest',
+        sourceSeedHandle: sourceHandle ? normalizeHandle(sourceHandle) : null,
+      },
+    });
+    stats.seeds.registered++;
+  } catch {
+    // 동시 ingest와의 레이스 등 — 이미 생긴 것으로 간주하고 skip.
+    stats.seeds.skipped++;
+  }
+}
 
 async function upsertShow(
   s: ShowInput,
@@ -417,7 +516,7 @@ async function upsertShow(
   // a single session, with a warning). Sorted so sessions[0] is the earliest.
   type NormSession = {
     date: string; startTime?: string; endTime?: string;
-    ticketUrl?: string; ticketOpenAt?: string; capacity?: number; notes?: string;
+    ticketUrl?: string; ticketOpenAt?: string; presaleOpenAt?: string; capacity?: number; notes?: string;
   };
   let sessionList: NormSession[];
   if (s.sessions && s.sessions.length > 0) {
@@ -476,7 +575,9 @@ async function upsertShow(
     show = await prisma.show.update({ where: { id: existing.id }, data });
     stats.shows.updated++;
   } else {
-    show = await prisma.show.create({ data });
+    // 크롤 import 는 곧바로 게시(APPROVED)한다. 수동 검수 없이 홈에 노출되도록.
+    // (update 경로는 손대지 않아 재크롤 때 수동 반려/검수 결정이 유지된다.)
+    show = await prisma.show.create({ data: { ...data, status: 'APPROVED' } });
     stats.shows.inserted++;
   }
 
@@ -503,6 +604,7 @@ async function upsertShow(
       endTime: sess.endTime ?? null,
       ticketUrl: sess.ticketUrl ?? null,
       ticketOpenAt: sess.ticketOpenAt ? new Date(sess.ticketOpenAt) : null,
+      presaleOpenAt: sess.presaleOpenAt ? new Date(sess.presaleOpenAt) : null,
       capacity: sess.capacity ?? null,
       notes: sess.notes ?? null,
     };
@@ -571,6 +673,7 @@ async function upsertFestivalInfo(
       sourcePostUrl,
       postedAt: fi.postedAt ? new Date(fi.postedAt) : null,
       order: fi.order ?? 0,
+      status: 'APPROVED', // 크롤 import 는 곧바로 게시(수동 검수 없이 공개)
     },
   });
   stats.festivalInfo.inserted++;
@@ -686,6 +789,7 @@ async function main() {
     venues: { found: 0, created: 0 },
     festivalInfo: { inserted: 0, updated: 0 },
     setlists: { added: 0, skipped: 0 },
+    seeds: { registered: 0, skipped: 0 },
     imagesUploaded: 0,
     imageBytesIn: 0,
     imageBytesOut: 0,
@@ -720,6 +824,26 @@ async function main() {
     }
   }
 
+  // Pass 5: 워치리스트 seed 등록 — 크롤 중 발견한 아티스트 IG 핸들을 seedAccount에 등록한다.
+  // 라인업/단독공연 아티스트(artists[].igHandle)는 자동 수집하고, payload.seeds[]로 명시한
+  // 추가 핸들(캡션 멘션·festival/venue 등)도 등록한다. 같은 런 안에서 핸들 단위로 dedupe.
+  // (아티스트 데이터 자체의 igHandle/이미지 갱신은 findOrCreateArtist에서 이미 수행됨.)
+  const seedMap = new Map<string, 'artist' | 'festival' | 'venue'>();
+  for (const e of payload.entities) {
+    if (e.kind === 'show') {
+      for (const a of e.artists) {
+        if (a.igHandle) seedMap.set(normalizeHandle(a.igHandle), 'artist');
+      }
+    }
+  }
+  for (const s of payload.seeds ?? []) {
+    seedMap.set(normalizeHandle(s.handle), s.kind ?? 'artist');
+  }
+  const sourceHandle = payload.source.accountHandle ?? null;
+  for (const [handle, kind] of seedMap) {
+    await registerSeed(handle, kind, sourceHandle, stats);
+  }
+
   // Audit log
   const logDir = resolve(process.cwd(), '.omc', 'ingest-log');
   if (!DRY) mkdirSync(logDir, { recursive: true });
@@ -750,6 +874,7 @@ async function main() {
   console.log(`venues:    found=${stats.venues.found} created=${stats.venues.created}`);
   console.log(`info:      ins=${stats.festivalInfo.inserted} upd=${stats.festivalInfo.updated}`);
   console.log(`setlists:  added=${stats.setlists.added} skip=${stats.setlists.skipped}`);
+  console.log(`seeds:     reg=${stats.seeds.registered} skip=${stats.seeds.skipped}`);
   console.log(
     `images:    uploaded=${stats.imagesUploaded}  ` +
       `${(stats.imageBytesIn / 1024).toFixed(0)}KB -> ${(stats.imageBytesOut / 1024).toFixed(0)}KB`,

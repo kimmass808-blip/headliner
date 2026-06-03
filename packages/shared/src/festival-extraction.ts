@@ -40,6 +40,12 @@ export const FestivalExtractionSchema = z.object({
   locationText: z.string().nullable().optional(),
   officialUrl: z.string().url().nullable().optional(),
   ticketUrl: z.string().url().nullable().optional(),
+  ticketOpenAt: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/, 'YYYY-MM-DD 또는 YYYY-MM-DDTHH:MM 형식')
+    .nullable()
+    .optional()
+    .describe('예매 오픈 일시 (날짜만 또는 날짜+시각). 없으면 null'),
   posterImageUrl: z.string().url().nullable().optional(),
   description: z.string().nullable().optional(),
   sets: z.array(FestivalSetSchema).describe('라인업 set들. 빈 배열 가능'),

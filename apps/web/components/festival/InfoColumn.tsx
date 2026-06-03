@@ -26,13 +26,14 @@ export interface FestivalInfoColumnProps {
   city: string | null;
   ticketUrl: string | null;
   ticketLabel: string | null;
+  ticketOpenLabel: string | null; // '예매 오픈' 표시용. '6.15 (목) 20:00' | null
   officialUrl: string | null;
 }
 
 export function FestivalInfoColumn(props: FestivalInfoColumnProps) {
   const {
     name, dateText, startMonthDay, dayBadge, dayKrRange,
-    venueName, city, ticketUrl, ticketLabel, officialUrl,
+    venueName, city, ticketUrl, ticketLabel, ticketOpenLabel, officialUrl,
   } = props;
 
   return (
@@ -79,17 +80,22 @@ export function FestivalInfoColumn(props: FestivalInfoColumnProps) {
           </MetaRow>
         ) : null}
 
-        {ticketUrl ? (
+        {ticketUrl || ticketOpenLabel ? (
           <MetaRow label="TICKET">
-            <a
-              href={ticketUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="group inline-flex items-center gap-2 text-paper/85 transition hover:text-paper"
-            >
-              {ticketLabel ?? '예매 페이지'}
-              <ArrowUpRight className="h-4 w-4 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-            </a>
+            {ticketUrl ? (
+              <a
+                href={ticketUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="group inline-flex items-center gap-2 text-paper/85 transition hover:text-paper"
+              >
+                {ticketLabel ?? '예매 페이지'}
+                <ArrowUpRight className="h-4 w-4 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+              </a>
+            ) : null}
+            {ticketOpenLabel ? (
+              <div className="mt-1 text-[13px] text-paper/45">예매 오픈 {ticketOpenLabel}</div>
+            ) : null}
           </MetaRow>
         ) : null}
 

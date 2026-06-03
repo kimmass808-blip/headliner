@@ -13,6 +13,7 @@ export const EXTRACT_SHOW_SYSTEM_PROMPT = `당신은 한국 인디 음악 인스
 - artistNames: 아티스트명 배열. 텍스트에서 확인된 아티스트만 포함. 없으면 빈 배열 [].
 - title: 공연 제목. 없으면 null.
 - ticketUrl: 예매 링크 URL. 없으면 null.
+- ticketOpenAt: 예매(티켓) 오픈 일시. 날짜만 알면 "YYYY-MM-DD", 시각까지 알면 "YYYY-MM-DDTHH:MM". 없으면 null.
 - imageUrl: 공연 포스터 이미지 URL. 없으면 null.
 
 중요 규칙:
@@ -29,6 +30,7 @@ JSON으로 답하세요:
   "artistNames": ["아티스트1", "아티스트2"],
   "title": "공연 제목" | null,
   "ticketUrl": "https://..." | null,
+  "ticketOpenAt": "YYYY-MM-DD" | "YYYY-MM-DDTHH:MM" | null,
   "imageUrl": "https://..." | null
 }
 
@@ -38,6 +40,7 @@ JSON으로 답하세요:
 일시: 2025년 3월 15일 (토) 오후 7시
 장소: 홍대 클럽 FF
 아티스트: 새소년 / 잔나비
+예매 오픈: 2월 20일(목) 오후 8시
 예매: https://ticket.melon.com/abc123
 
 출력:
@@ -48,6 +51,7 @@ JSON으로 답하세요:
   "artistNames": ["새소년", "잔나비"],
   "title": null,
   "ticketUrl": "https://ticket.melon.com/abc123",
+  "ticketOpenAt": "2025-02-20T20:00",
   "imageUrl": null
 }
 
@@ -65,6 +69,7 @@ JSON으로 답하세요:
   "artistNames": ["handle_band"],
   "title": "특별한 밤",
   "ticketUrl": null,
+  "ticketOpenAt": null,
   "imageUrl": null
 }`;
 

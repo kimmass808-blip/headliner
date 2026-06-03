@@ -17,10 +17,13 @@ import {
   type LineupChipData,
 } from '../../../components/common/LineupSection';
 import { ymd } from '../../../lib/calendar';
+import { formatTicketOpen } from '../../../lib/ticketOpen';
+import { ticketVendorFromUrl } from '@mft/shared';
 import {
   inheritImage,
   inheritVenue,
   inheritTicketUrl,
+  inheritTicketOpenAt,
 } from '../../../lib/festivalInheritance';
 
 export const revalidate = 86400; // 1일. 관리자 수정 시 actions.ts가 즉시 무효화.
@@ -33,20 +36,6 @@ export function generateStaticParams() {
 
 const WEEKDAY_EN = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'] as const;
 const WEEKDAY_KR = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'] as const;
-
-/** 외부 URL host를 사람이 읽기 좋은 라벨로 ('yes24.com' → 'YES24 티켓') */
-function deriveTicketLabel(url: string): string {
-  try {
-    const host = new URL(url).hostname.replace(/^www\./, '');
-    if (host.includes('yes24')) return 'YES24 티켓';
-    if (host.includes('interpark')) return '인터파크 티켓';
-    if (host.includes('melon')) return '멜론 티켓';
-    if (host.includes('ticketlink')) return '티켓링크';
-    return '예매 페이지';
-  } catch {
-    return '예매 페이지';
-  }
-}
 
 /** instagram.com/p/SHORTCODE → '@sourceAccount' (InstagramPost row가 있으면 사용) */
 function deriveSourceLabel(account: string | null): string | null {
@@ -73,6 +62,7 @@ export default async function ShowDetailPage({
           name: true,
           posterImageUrl: true,
           ticketUrl: true,
+          ticketOpenAt: true,
           locationText: true,
           venue: { select: { name: true, region: true } },
         },
@@ -145,8 +135,9 @@ export default async function ShowDetailPage({
   // remains as a Phase 6 cleanup target — do not read it here.
   const sessions = show.sessions.map((s) => {
     const d = new Date(s.date);
-    // 세션에 티켓이 없으면 부모 페스티벌 통합 티켓으로 fallback.
+    // 세션에 티켓/예매오픈이 없으면 부모 페스티벌 통합 값으로 fallback.
     const ticketUrl = inheritTicketUrl(s.ticketUrl, show.festival);
+    const ticketOpenAt = inheritTicketOpenAt(s.ticketOpenAt, show.festival);
     return {
       date: `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`,
       monthDay: [
@@ -157,7 +148,10 @@ export default async function ShowDetailPage({
       dayKr: WEEKDAY_KR[d.getDay()]!,
       startTime: s.startTime,
       ticketUrl,
-      ticketLabel: ticketUrl ? deriveTicketLabel(ticketUrl) : null,
+      ticketLabel: ticketUrl ? (ticketVendorFromUrl(ticketUrl) ?? '예매 페이지') : null,
+      ticketOpenLabel: formatTicketOpen(ticketOpenAt),
+      // 선예매는 session-level 전용(페스티벌 통합 상속 없음).
+      presaleOpenLabel: formatTicketOpen(s.presaleOpenAt),
     };
   });
 

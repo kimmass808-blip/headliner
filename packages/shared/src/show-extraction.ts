@@ -28,6 +28,12 @@ export const ShowExtractionSchema = z.object({
     .describe('아티스트명 배열 (canonicalize 미적용). 빈 배열 가능'),
   title: z.string().nullable().optional().describe('공연 제목 (있으면)'),
   ticketUrl: z.string().url().nullable().optional(),
+  ticketOpenAt: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/, 'YYYY-MM-DD 또는 YYYY-MM-DDTHH:MM 형식')
+    .nullable()
+    .optional()
+    .describe('예매 오픈 일시 (날짜만 또는 날짜+시각). 없으면 null'),
   imageUrl: z.string().url().nullable().optional(),
 });
 

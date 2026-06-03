@@ -44,6 +44,8 @@ const INFO_CATEGORIES: { value: FestivalInfoCategory; label: string }[] = [
   { value: 'FAQ', label: 'FAQ' },
   { value: 'GOODS', label: 'MD·푸드' },
   { value: 'AMENITY', label: '편의시설' },
+  { value: 'TICKET', label: '티켓·예매' },
+  { value: 'PROMO', label: '프로모션·파트너' },
   { value: 'NOTICE', label: '안내' },
 ];
 

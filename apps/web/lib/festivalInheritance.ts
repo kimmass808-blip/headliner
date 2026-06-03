@@ -14,6 +14,7 @@ export interface ParentFestival {
   name: string;
   posterImageUrl: string | null;
   ticketUrl: string | null;
+  ticketOpenAt: Date | null;
   venue: VenueShape;
   locationText: string | null;
 }
@@ -43,6 +44,14 @@ export function inheritTicketUrl(
   festival: Pick<ParentFestival, 'ticketUrl'> | null,
 ): string | null {
   return showTicketUrl ?? festival?.ticketUrl ?? null;
+}
+
+/** 예매 오픈일: session 값 우선, 없으면 페스티벌 통합 예매 오픈일. */
+export function inheritTicketOpenAt(
+  sessionTicketOpenAt: Date | null,
+  festival: Pick<ParentFestival, 'ticketOpenAt'> | null,
+): Date | null {
+  return sessionTicketOpenAt ?? festival?.ticketOpenAt ?? null;
 }
 
 /**

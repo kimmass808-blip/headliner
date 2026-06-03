@@ -59,6 +59,8 @@ export type FestivalInfoCategory =
   | 'FAQ'
   | 'GOODS'
   | 'AMENITY'
+  | 'TICKET'
+  | 'PROMO'
   | 'NOTICE';
 
 export interface FestivalInfoVM {
