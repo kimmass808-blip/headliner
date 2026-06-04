@@ -12,6 +12,7 @@ import { BackLink } from '../../components/common/BackLink';
 import { MonthNav } from '../../components/calendar/MonthNav';
 import { SummaryStrip } from '../../components/calendar/SummaryStrip';
 import { MonthGrid } from '../../components/calendar/MonthGrid';
+import { MonthAgenda } from '../../components/calendar/MonthAgenda';
 import { CalendarLegend } from '../../components/calendar/CalendarLegend';
 import {
   parseMonthParam,
@@ -191,8 +192,15 @@ export default async function CalendarPage({
             todayMonth={todayMonth}
           />
           <SummaryStrip summary={summary} monthLabel={monthLabel} />
-          <MonthGrid month={month} events={events} today={today} />
-          <CalendarLegend />
+          {/* 넓은 화면: 월 그리드 / 좁은 화면: 세로 아젠다 — 좁을 때 그리드가 깨지는 문제 대응 */}
+          <div className="hidden sm:block">
+            <MonthGrid month={month} events={events} today={today} />
+            <CalendarLegend />
+          </div>
+          <div className="sm:hidden">
+            <MonthAgenda month={month} events={events} today={today} />
+            <CalendarLegend />
+          </div>
         </div>
       </main>
     </div>
