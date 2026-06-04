@@ -44,9 +44,8 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     images: ['/headliner.png'],
   },
-  // 구글 서치 콘솔에서 "HTML 태그" 방식으로 받은 코드를 아래 빈 문자열에 넣으세요.
-  // 예: verification: { google: 'AbCdEf...토큰...' }
-  // verification: { google: '여기에-구글-인증-토큰' },
+  // 구글 서치 콘솔 소유권 확인용 토큰 (HTML 태그 방식).
+  verification: { google: 'TXdnkzmO_QpOHJ36Sm--b3RuInTdavOrjV7MeyNEKn4' },
   appleWebApp: {
     capable: true,
     title: SITE_NAME,
