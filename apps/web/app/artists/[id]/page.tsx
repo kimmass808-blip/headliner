@@ -2,8 +2,10 @@
  * Headliner — Artist 상세 페이지 (다크 무드 / design_handoff_headliner_artist 기준).
  */
 
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { prisma } from '@mft/db';
+import { absoluteUrl, SITE_NAME } from '../../../lib/site';
 import { HomeHeader } from '../../../components/home/Header';
 import { BackLink } from '../../../components/common/BackLink';
 import { ShowsGrid, type ShowsGridItem } from '../../../components/common/ShowsGrid';
@@ -58,6 +60,51 @@ function urlToLabel(url: string): string {
   } catch {
     return url;
   }
+}
+
+/** 검색결과·소셜 카드에 쓰일 아티스트별 제목·설명을 생성. */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const artist = await prisma.artist.findUnique({
+    where: { id },
+    select: {
+      canonicalName: true,
+      imageUrl: true,
+      bioText: true,
+      genres: true,
+      _count: { select: { shows: { where: { status: 'APPROVED', duplicateOfShowId: null } } } },
+    },
+  });
+
+  // 공개 공연이 없는 아티스트는 색인 제외(빈 페이지 방지).
+  if (!artist || artist._count.shows === 0) {
+    return { title: '아티스트를 찾을 수 없습니다', robots: { index: false, follow: false } };
+  }
+
+  const genreText = artist.genres?.length ? artist.genres.slice(0, 3).join(', ') : null;
+  const description =
+    artist.bioText?.trim().slice(0, 160) ||
+    `${artist.canonicalName}${genreText ? ` (${genreText})` : ''}의 공연 일정·셋리스트를 ${SITE_NAME}에서 확인하세요.`;
+
+  const image = artist.imageUrl ?? '/headliner.png';
+  const url = absoluteUrl(`/artists/${id}`);
+
+  return {
+    title: artist.canonicalName,
+    description,
+    alternates: { canonical: url },
+    openGraph: { title: artist.canonicalName, description, url, images: [{ url: image }] },
+    twitter: {
+      card: 'summary_large_image',
+      title: artist.canonicalName,
+      description,
+      images: [image],
+    },
+  };
 }
 
 export default async function ArtistDetailPage({

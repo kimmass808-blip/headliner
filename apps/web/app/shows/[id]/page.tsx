@@ -2,8 +2,10 @@
  * Headliner — Show 상세 페이지 (다크 무드 / design_handoff_headliner_pages 기준).
  */
 
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { prisma } from '@mft/db';
+import { absoluteUrl, SITE_NAME } from '../../../lib/site';
 import { HomeHeader } from '../../../components/home/Header';
 import { BackLink } from '../../../components/common/BackLink';
 import { ScrapButton } from '../../../components/common/ScrapButton';
@@ -41,6 +43,59 @@ const WEEKDAY_KR = ['일요일', '월요일', '화요일', '수요일', '목요�
 function deriveSourceLabel(account: string | null): string | null {
   if (!account) return null;
   return account.startsWith('@') ? account : `@${account}`;
+}
+
+/** 검색결과·소셜 카드에 쓰일 페이지별 제목·설명을 생성. */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const show = await prisma.show.findUnique({
+    where: { id },
+    select: {
+      status: true,
+      title: true,
+      imageUrl: true,
+      firstSessionDate: true,
+      venue: { select: { name: true, region: true } },
+      artists: { select: { canonicalName: true } },
+      festival: { select: { name: true, posterImageUrl: true } },
+    },
+  });
+
+  if (!show || show.status !== 'APPROVED') {
+    return { title: '공연을 찾을 수 없습니다' };
+  }
+
+  const artistNames = show.artists.map((a) => a.canonicalName).join(', ');
+  const name = show.title || artistNames || '공연';
+  const date = show.firstSessionDate
+    ? new Date(show.firstSessionDate).toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : null;
+  const venueName = show.venue?.name ?? show.festival?.name ?? null;
+
+  const descParts = [artistNames, date, venueName].filter(Boolean);
+  const description =
+    descParts.length > 0
+      ? `${descParts.join(' · ')} — ${SITE_NAME}에서 공연 정보와 셋리스트를 확인하세요.`
+      : `${name} 공연 정보 — ${SITE_NAME}`;
+
+  const image = show.imageUrl ?? show.festival?.posterImageUrl ?? '/headliner.png';
+  const url = absoluteUrl(`/shows/${id}`);
+
+  return {
+    title: name,
+    description,
+    alternates: { canonical: url },
+    openGraph: { title: name, description, url, images: [{ url: image }] },
+    twitter: { card: 'summary_large_image', title: name, description, images: [image] },
+  };
 }
 
 export default async function ShowDetailPage({
@@ -175,8 +230,45 @@ export default async function ShowDetailPage({
   const posterImage = inheritImage(show.imageUrl, show.festival);
   const venue = inheritVenue(show.venue, show.festival);
 
+  // 구조화 데이터(schema.org MusicEvent): 구글이 검색결과에 날짜·장소를 풍부하게 노출.
+  const eventName = show.title || artistsAlt || '공연';
+  const startDate = show.sessions[0]?.date ?? show.firstSessionDate ?? null;
+  const endDate = show.sessions[show.sessions.length - 1]?.date ?? startDate;
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'MusicEvent',
+    name: eventName,
+    url: absoluteUrl(`/shows/${show.id}`),
+    eventStatus: 'https://schema.org/EventScheduled',
+    eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+    ...(startDate ? { startDate: new Date(startDate).toISOString().slice(0, 10) } : {}),
+    ...(endDate ? { endDate: new Date(endDate).toISOString().slice(0, 10) } : {}),
+    ...(posterImage ? { image: [posterImage] } : {}),
+    ...(venue.name
+      ? {
+          location: {
+            '@type': 'Place',
+            name: venue.name,
+            ...(venue.city ? { address: venue.city } : {}),
+          },
+        }
+      : {}),
+    ...(show.artists.length > 0
+      ? {
+          performer: show.artists.map((a) => ({
+            '@type': 'MusicGroup',
+            name: a.canonicalName,
+          })),
+        }
+      : {}),
+  };
+
   return (
     <div className="min-h-screen bg-ink-900 font-sans text-paper">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <HomeHeader />
 
       <main>

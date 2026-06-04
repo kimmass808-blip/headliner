@@ -3,8 +3,10 @@
  * Show 상세와 동일한 레이아웃 패턴 — 다른 점은 라인업 섹션과 날짜 범위.
  */
 
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { prisma } from '@mft/db';
+import { absoluteUrl, SITE_NAME } from '../../../lib/site';
 import { HomeHeader } from '../../../components/home/Header';
 import { BackLink } from '../../../components/common/BackLink';
 import { ScrapButton } from '../../../components/common/ScrapButton';
@@ -40,6 +42,58 @@ function fmt(d: Date): string {
 
 function fmtMd(d: Date): string {
   return `${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** 검색결과·소셜 카드에 쓰일 페스티벌별 제목·설명을 생성. */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const festival = await prisma.festival.findUnique({
+    where: { id },
+    select: {
+      status: true,
+      name: true,
+      description: true,
+      posterImageUrl: true,
+      startDate: true,
+      endDate: true,
+      locationText: true,
+      venue: { select: { name: true } },
+    },
+  });
+
+  if (!festival || festival.status !== 'APPROVED') {
+    return { title: '페스티벌을 찾을 수 없습니다' };
+  }
+
+  const start = festival.startDate
+    ? new Date(festival.startDate).toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : null;
+  const place = festival.locationText ?? festival.venue?.name ?? null;
+  const descParts = [start, place].filter(Boolean);
+  const description =
+    festival.description ||
+    (descParts.length > 0
+      ? `${descParts.join(' · ')} — ${SITE_NAME}에서 라인업과 예매 정보를 확인하세요.`
+      : `${festival.name} 라인업·예매 정보 — ${SITE_NAME}`);
+
+  const image = festival.posterImageUrl ?? '/headliner.png';
+  const url = absoluteUrl(`/festivals/${id}`);
+
+  return {
+    title: festival.name,
+    description,
+    alternates: { canonical: url },
+    openGraph: { title: festival.name, description, url, images: [{ url: image }] },
+    twitter: { card: 'summary_large_image', title: festival.name, description, images: [image] },
+  };
 }
 
 export default async function FestivalDetailPage({
@@ -132,8 +186,42 @@ export default async function FestivalDetailPage({
   const venueName = festival.locationText ?? festival.venue?.name ?? null;
   const city = festival.venue?.region ?? null;
 
+  // 구조화 데이터(schema.org MusicEvent): 검색결과에 페스티벌 날짜·장소·라인업 노출.
+  const performers = Array.from(lineupTotal).map((name) => ({
+    '@type': 'MusicGroup',
+    name,
+  }));
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'MusicEvent',
+    name: festival.name,
+    url: absoluteUrl(`/festivals/${festival.id}`),
+    eventStatus: 'https://schema.org/EventScheduled',
+    eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+    ...(startDate ? { startDate: startDate.toISOString().slice(0, 10) } : {}),
+    ...(endDate ?? startDate
+      ? { endDate: (endDate ?? startDate)!.toISOString().slice(0, 10) }
+      : {}),
+    ...(festival.posterImageUrl ? { image: [festival.posterImageUrl] } : {}),
+    ...(festival.description ? { description: festival.description } : {}),
+    ...(venueName
+      ? {
+          location: {
+            '@type': 'Place',
+            name: venueName,
+            ...(city ? { address: city } : {}),
+          },
+        }
+      : {}),
+    ...(performers.length > 0 ? { performer: performers } : {}),
+  };
+
   return (
     <div className="min-h-screen bg-ink-900 font-sans text-paper">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <HomeHeader />
 
       <main>
