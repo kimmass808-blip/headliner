@@ -154,14 +154,15 @@ export async function loadManaged(): Promise<ItemVM[]> {
   const [shows, fests] = await Promise.all([
     prisma.show.findMany({
       where: { status: { in: ['APPROVED', 'REJECTED'] } },
-      orderBy: { reviewedAt: 'desc' },
-      take: 500,
+      // reviewedAt 가 비어있는(null) 항목이 대다수라, 검수일시 우선 + 생성일시 보조로 안정 정렬.
+      orderBy: [{ reviewedAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
+      take: 5000,
       select: showSelect,
     }),
     prisma.festival.findMany({
       where: { status: { in: ['APPROVED', 'REJECTED'] } },
-      orderBy: { reviewedAt: 'desc' },
-      take: 500,
+      orderBy: [{ reviewedAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
+      take: 5000,
       select: festSelect,
     }),
   ]);
