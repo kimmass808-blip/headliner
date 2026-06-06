@@ -121,6 +121,22 @@ export const getAllUpcomingFestivals = unstable_cache(
   { revalidate: 86400, tags: ['festivals'] },
 );
 
+/** 전체 페스티벌 — 과거·미래 모두 (승인·완성도≥1). 최신순. */
+export const getAllFestivals = unstable_cache(
+  async () => {
+    return prisma.festival.findMany({
+      where: {
+        status: 'APPROVED',
+        completeness: { gte: 1 },
+      },
+      orderBy: [{ startDate: 'desc' }],
+      select: festivalListSelect,
+    });
+  },
+  ['listing-all-festivals-v1'],
+  { revalidate: 86400, tags: ['festivals'] },
+);
+
 /** 전체 다가오는 단독공연 (승인·완성도≥1·진행중 포함·중복/페스티벌 child 제외). */
 export const getAllUpcomingShows = unstable_cache(
   async (startOfTodayMs: number) => {
@@ -138,5 +154,23 @@ export const getAllUpcomingShows = unstable_cache(
     });
   },
   ['listing-shows-v1'],
+  { revalidate: 86400, tags: ['shows'] },
+);
+
+/** 전체 단독공연 — 과거·미래 모두 (승인·완성도≥1·중복/페스티벌 child 제외). 최신순. */
+export const getAllShows = unstable_cache(
+  async () => {
+    return prisma.show.findMany({
+      where: {
+        status: 'APPROVED',
+        completeness: { gte: 1 },
+        duplicateOfShowId: null,
+        festivalId: null,
+      },
+      orderBy: [{ firstSessionDate: 'desc' }],
+      select: showListSelect,
+    });
+  },
+  ['listing-all-shows-v1'],
   { revalidate: 86400, tags: ['shows'] },
 );

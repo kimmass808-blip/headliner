@@ -9,7 +9,7 @@ import type { Metadata } from 'next';
 import { HomeHeader } from '../../components/home/Header';
 import { BackLink } from '../../components/common/BackLink';
 import { ShowsGrid } from '../../components/common/ShowsGrid';
-import { getAllUpcomingFestivals, mapFestivalToItem } from '../../lib/listings';
+import { getAllFestivals, mapFestivalToItem } from '../../lib/listings';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,9 +18,7 @@ export const metadata: Metadata = {
 };
 
 export default async function FestivalsListPage() {
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const rows = await getAllUpcomingFestivals(startOfToday.getTime());
+  const rows = await getAllFestivals();
   const items = rows.map(mapFestivalToItem);
 
   return (
@@ -37,7 +35,7 @@ export default async function FestivalsListPage() {
           items={items}
           title="페스티벌"
           sortable
-          emptyLabel="예정된 페스티벌이 없습니다."
+          emptyLabel="등록된 페스티벌이 없습니다."
         />
       </main>
     </div>
