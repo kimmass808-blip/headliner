@@ -123,6 +123,8 @@ export default async function ArtistDetailPage({
         orderBy: [{ firstSessionDate: 'asc' }],
         include: {
           venue: { select: { id: true, name: true, region: true } },
+          // 셋리스트(곡 1곡 이상) 유무 판정용 — 셋리스트 모음 링크 노출 여부에 사용.
+          setlist: { select: { songs: { take: 1, select: { id: true } } } },
           // 페스티벌 내부 공연은 이미지·장소를 부모에서 상속(읽기 시점 fallback).
           festival: {
             select: {
@@ -201,6 +203,8 @@ export default async function ArtistDetailPage({
 
   const photo = artist.imageUrl ?? artist.spotifyImageUrl ?? null;
   const hasNoShows = upcomingShows.length === 0 && pastShows.length === 0;
+  // 곡이 1곡 이상 등록된 셋리스트가 있는 공연이 하나라도 있으면 모음 링크 노출.
+  const hasSetlists = artist.shows.some((s) => (s.setlist?.songs.length ?? 0) > 0);
 
   return (
     <div className="min-h-screen bg-ink-900 pb-24 font-sans text-paper">
@@ -216,6 +220,7 @@ export default async function ArtistDetailPage({
           aliases={artist.aliases}
           photo={photo}
           links={links}
+          setlistsHref={hasSetlists ? `/artists/${id}/setlists` : null}
         />
 
         <BioSection paragraphs={bioParagraphs} />
