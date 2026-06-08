@@ -27,13 +27,10 @@ export default async function FestivalsListPage() {
       <main className="pb-24">
         <section className="mx-auto max-w-[1400px] px-6 pt-12 sm:px-10 sm:pt-16">
           <BackLink fallbackHref="/" />
-          <h1 className="mt-6 text-[28px] font-bold leading-tight tracking-[-0.025em] text-paper sm:text-[36px]">
-            전체 페스티벌
-          </h1>
         </section>
         <ShowsGrid
           items={items}
-          title="페스티벌"
+          title="전체 페스티벌"
           sortable
           emptyLabel="등록된 페스티벌이 없습니다."
         />
