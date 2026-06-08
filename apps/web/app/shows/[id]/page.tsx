@@ -13,12 +13,6 @@ import { PosterColumn } from '../../../components/show/PosterColumn';
 import { InfoColumn } from '../../../components/show/InfoColumn';
 import { SetlistSection } from '../../../components/show/SetlistSection';
 import type { SongRowData } from '../../../components/show/SongRow';
-import {
-  LineupSection,
-  type LineupDayData,
-  type LineupChipData,
-} from '../../../components/common/LineupSection';
-import { ymd } from '../../../lib/calendar';
 import { formatTicketOpen } from '../../../lib/ticketOpen';
 import { ticketVendorFromUrl } from '@mft/shared';
 import {
@@ -129,61 +123,11 @@ export default async function ShowDetailPage({
 
   if (!show || show.status !== 'APPROVED') notFound(); // v7: PENDING/REJECTED은 사이트에서 미노출
 
-  // show 결과에만 의존하는 두 조회는 서로 독립이므로 병렬 실행(라운드트립 1회 절약).
-  // - InstagramPost에서 sourceAccount 조회 (있으면 sourceLabel에 사용)
-  // - 페스티벌 소속이면 같은 페스티벌의 라인업 fetch (chip 기반 LineupSection용)
-  const [igPost, festivalLineupShows] = await Promise.all([
-    prisma.instagramPost.findUnique({
-      where: { canonicalUrl: show.originalPostUrl },
-      select: { sourceAccount: true },
-    }),
-    show.festivalId
-      ? prisma.show.findMany({
-          where: { status: 'APPROVED', festivalId: show.festivalId, duplicateOfShowId: null }, // v7
-          include: { artists: { select: { id: true, canonicalName: true } } },
-          orderBy: [{ firstSessionDate: 'asc' }, { setOrder: 'asc' }],
-        })
-      : Promise.resolve([]),
-  ]);
-
-  // 라인업 데이터 준비 — day별 그룹 + dedup + isHere 마킹
-  let lineupTotalArtists = 0;
-  let lineupDays: LineupDayData[] = [];
-  if (festivalLineupShows.length > 0) {
-    const dayGroups = new Map<string, { date: Date; chips: LineupChipData[] }>();
-    for (const fs of festivalLineupShows) {
-      if (!fs.firstSessionDate) continue;
-      const date = new Date(fs.firstSessionDate);
-      const key = ymd(date);
-      if (!dayGroups.has(key)) dayGroups.set(key, { date, chips: [] });
-      const group = dayGroups.get(key)!;
-      for (const artist of fs.artists) {
-        if (group.chips.some((c) => c.name === artist.canonicalName)) continue;
-        group.chips.push({
-          name: artist.canonicalName,
-          showId: fs.id,
-          isHere: fs.id === show.id,
-        });
-      }
-    }
-    const dayKeys = Array.from(dayGroups.keys()).sort();
-    lineupDays = dayKeys.map((k, i) => {
-      const g = dayGroups.get(k)!;
-      const hereChip = g.chips.find((c) => c.isHere);
-      return {
-        label: `DAY ${i + 1}`,
-        date: `${g.date.getFullYear()}.${String(g.date.getMonth() + 1).padStart(2, '0')}.${String(g.date.getDate()).padStart(2, '0')}`,
-        dayKr: WEEKDAY_EN[g.date.getDay()]!,
-        hereArtist: hereChip?.name,
-        chips: g.chips,
-      };
-    });
-    const uniq = new Set<string>();
-    for (const g of dayGroups.values()) {
-      for (const c of g.chips) uniq.add(c.name);
-    }
-    lineupTotalArtists = uniq.size;
-  }
+  // InstagramPost에서 sourceAccount 조회 (있으면 sourceLabel에 사용)
+  const igPost = await prisma.instagramPost.findUnique({
+    where: { canonicalUrl: show.originalPostUrl },
+    select: { sourceAccount: true },
+  });
 
   // v6: ShowSession is the canonical source. Phase 1 backfill guarantees every
   // dated Show has ≥1 session row; ingest always writes both. Legacy Show.date
@@ -300,15 +244,8 @@ export default async function ShowDetailPage({
           </div>
         </section>
 
-        {show.festivalId && lineupDays.length > 0 ? (
-          <LineupSection
-            totalArtists={lineupTotalArtists}
-            days={lineupDays}
-            festivalLinkHref={`/festivals/${show.festivalId}`}
-          />
-        ) : (
-          <SetlistSection songs={songs} />
-        )}
+        {/* 셋리스트는 곡이 있을 때만 렌더(없으면 컴포넌트가 null 반환). */}
+        <SetlistSection songs={songs} />
       </main>
     </div>
   );

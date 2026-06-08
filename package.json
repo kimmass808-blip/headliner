@@ -13,7 +13,9 @@
     "db:migrate": "pnpm --filter @mft/db prisma:migrate",
     "db:studio": "pnpm --filter @mft/db prisma:studio",
     "ingest": "./scripts/run-ingest.sh",
-    "review:learn": "./scripts/run-review-learn.sh"
+    "reconcile-setlists": "./scripts/run-reconcile-setlists.sh",
+    "review:learn": "./scripts/run-review-learn.sh",
+    "extract-setlist-yt": "./scripts/run-extract-setlist-youtube.sh"
   },
   "devDependencies": {
     "prettier": "^3.3.0",
