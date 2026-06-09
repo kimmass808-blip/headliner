@@ -4,6 +4,10 @@
  * ingest-collect(finalize.mjs)가 캡션 JSON을 수집하면 IngestSource에 'collected'(대기)로
  * 등록되고, ingest-show(scripts/ingest.ts)가 적재를 마치면 'loaded'(완료)로 도장찍힌다.
  * 이 페이지는 그 테이블을 읽어 "어떤 JSON이 있고, 아직 처리·적재해야 하는지"를 보여준다.
+ *
+ * 아티스트 명·종류는 IngestSource에 없으므로 핸들로 다른 테이블을 조회해 채운다:
+ *   - 이름: Artist.canonicalName → FestivalSeries.name → Festival.name → fullName 순 폴백
+ *   - 종류: 워치리스트(SeedAccount).kind → IngestSource.kind
  */
 
 import Link from 'next/link';
@@ -35,15 +39,29 @@ type Row = {
   showsLoaded: number | null;
 };
 
-function HandleCell({ r }: { r: Row }) {
+type Meta = { name: string | null; kind: string | null };
+
+function NameCell({ name }: { name: string | null }) {
   return (
     <td className="px-4 py-2.5">
+      {name ? (
+        <span className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-100">{name}</span>
+      ) : (
+        <span className="text-[13px] text-zinc-300">—</span>
+      )}
+    </td>
+  );
+}
+
+function HandleCell({ r }: { r: Row }) {
+  return (
+    <td className="px-3 py-2.5">
       <div className="flex items-center gap-2">
         <a
           href={`https://www.instagram.com/${r.igHandle}/`}
           target="_blank"
           rel="noreferrer"
-          className="font-mono text-[13px] font-semibold text-zinc-800 hover:text-blue-600 hover:underline dark:text-zinc-200"
+          className="font-mono text-[12px] text-zinc-500 hover:text-blue-600 hover:underline"
         >
           @{r.igHandle}
         </a>
@@ -53,7 +71,26 @@ function HandleCell({ r }: { r: Row }) {
           </span>
         )}
       </div>
-      {r.fullName && <div className="text-[11px] text-zinc-400">{r.fullName}</div>}
+    </td>
+  );
+}
+
+function KindCell({ kind }: { kind: string | null }) {
+  const map: Record<string, { c: string; t: string }> = {
+    artist: { c: 'bg-blue-50 text-blue-700 ring-blue-600/20', t: '아티스트' },
+    festival: { c: 'bg-purple-50 text-purple-700 ring-purple-600/20', t: '페스티벌' },
+    venue: { c: 'bg-zinc-100 text-zinc-600 ring-zinc-300', t: '공연장' },
+  };
+  const m = kind ? map[kind] : null;
+  return (
+    <td className="px-3 py-2.5">
+      {m ? (
+        <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${m.c}`}>
+          {m.t}
+        </span>
+      ) : (
+        <span className="text-[12px] text-zinc-300">—</span>
+      )}
     </td>
   );
 }
@@ -70,6 +107,25 @@ export default async function IngestQueuePage() {
       take: 200,
     }),
   ]);
+
+  // 핸들 → 아티스트명·종류 메타 (IngestSource엔 없으므로 다른 테이블에서 조회·병합).
+  const handles = [...pending, ...loaded].map((r) => r.igHandle);
+  const [artists, series, festivals, seeds] = await Promise.all([
+    prisma.artist.findMany({ where: { igHandle: { in: handles } }, select: { igHandle: true, canonicalName: true } }),
+    prisma.festivalSeries.findMany({ where: { igHandle: { in: handles } }, select: { igHandle: true, name: true } }),
+    prisma.festival.findMany({ where: { igHandle: { in: handles } }, select: { igHandle: true, name: true } }),
+    prisma.seedAccount.findMany({ where: { igHandle: { in: handles } }, select: { igHandle: true, kind: true } }),
+  ]);
+  const artistMap = new Map(artists.map((a) => [a.igHandle, a.canonicalName]));
+  const seriesMap = new Map(series.map((s) => [s.igHandle!, s.name]));
+  const festMap = new Map<string, string>();
+  for (const f of festivals) if (f.igHandle && !festMap.has(f.igHandle)) festMap.set(f.igHandle, f.name);
+  const seedKind = new Map(seeds.map((s) => [s.igHandle, s.kind]));
+
+  const metaOf = (r: Row): Meta => ({
+    name: artistMap.get(r.igHandle) ?? seriesMap.get(r.igHandle) ?? festMap.get(r.igHandle) ?? r.fullName ?? null,
+    kind: seedKind.get(r.igHandle) ?? r.kind ?? null,
+  });
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -107,25 +163,32 @@ export default async function IngestQueuePage() {
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="border-b border-zinc-200 bg-zinc-50/60 text-left text-[11px] uppercase tracking-wider text-zinc-400">
-                  <th className="px-4 py-2 font-semibold">계정</th>
+                  <th className="px-4 py-2 font-semibold">아티스트</th>
+                  <th className="px-3 py-2 font-semibold">계정</th>
+                  <th className="px-3 py-2 font-semibold">종류</th>
                   <th className="px-3 py-2 text-right font-semibold">수집 게시물</th>
                   <th className="px-3 py-2 text-right font-semibold">수집 시각</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {pending.map((r: Row) => (
-                  <tr key={r.igHandle} className="hover:bg-zinc-50/60">
-                    <HandleCell r={r} />
-                    <td className="px-3 py-2.5 text-right tabular-nums text-zinc-600">
-                      {r.fetched}
-                      {r.mediaCount != null && <span className="text-zinc-300"> / {r.mediaCount}</span>}
-                    </td>
-                    <td className="px-3 py-2.5 text-right text-zinc-500">{fmt(r.collectedAt)}</td>
-                  </tr>
-                ))}
+                {pending.map((r: Row) => {
+                  const m = metaOf(r);
+                  return (
+                    <tr key={r.igHandle} className="hover:bg-zinc-50/60">
+                      <NameCell name={m.name} />
+                      <HandleCell r={r} />
+                      <KindCell kind={m.kind} />
+                      <td className="px-3 py-2.5 text-right tabular-nums text-zinc-600">
+                        {r.fetched}
+                        {r.mediaCount != null && <span className="text-zinc-300"> / {r.mediaCount}</span>}
+                      </td>
+                      <td className="px-3 py-2.5 text-right text-zinc-500">{fmt(r.collectedAt)}</td>
+                    </tr>
+                  );
+                })}
                 {pending.length === 0 && (
                   <tr>
-                    <td colSpan={3} className="px-4 py-8 text-center text-[13px] text-zinc-400">
+                    <td colSpan={5} className="px-4 py-8 text-center text-[13px] text-zinc-400">
                       처리 대기 중인 수집물이 없습니다.
                     </td>
                   </tr>
@@ -144,28 +207,35 @@ export default async function IngestQueuePage() {
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="border-b border-zinc-200 bg-zinc-50/60 text-left text-[11px] uppercase tracking-wider text-zinc-400">
-                  <th className="px-4 py-2 font-semibold">계정</th>
+                  <th className="px-4 py-2 font-semibold">아티스트</th>
+                  <th className="px-3 py-2 font-semibold">계정</th>
+                  <th className="px-3 py-2 font-semibold">종류</th>
                   <th className="px-3 py-2 text-right font-semibold">적재 Show</th>
                   <th className="px-3 py-2 text-right font-semibold">적재 시각</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {loaded.map((r: Row) => (
-                  <tr key={r.igHandle} className="hover:bg-zinc-50/60">
-                    <HandleCell r={r} />
-                    <td className="px-3 py-2.5 text-right tabular-nums">
-                      {r.showsLoaded != null ? (
-                        <span className="font-semibold text-blue-600">{r.showsLoaded}</span>
-                      ) : (
-                        <span className="text-zinc-300">—</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5 text-right text-zinc-500">{fmt(r.loadedAt)}</td>
-                  </tr>
-                ))}
+                {loaded.map((r: Row) => {
+                  const m = metaOf(r);
+                  return (
+                    <tr key={r.igHandle} className="hover:bg-zinc-50/60">
+                      <NameCell name={m.name} />
+                      <HandleCell r={r} />
+                      <KindCell kind={m.kind} />
+                      <td className="px-3 py-2.5 text-right tabular-nums">
+                        {r.showsLoaded != null ? (
+                          <span className="font-semibold text-blue-600">{r.showsLoaded}</span>
+                        ) : (
+                          <span className="text-zinc-300">—</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 text-right text-zinc-500">{fmt(r.loadedAt)}</td>
+                    </tr>
+                  );
+                })}
                 {loaded.length === 0 && (
                   <tr>
-                    <td colSpan={3} className="px-4 py-8 text-center text-[13px] text-zinc-400">
+                    <td colSpan={5} className="px-4 py-8 text-center text-[13px] text-zinc-400">
                       아직 적재된 수집물이 없습니다.
                     </td>
                   </tr>
