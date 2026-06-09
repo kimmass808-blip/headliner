@@ -2,7 +2,6 @@
  * 홈 다크 검색바 (pill shape).
  *
  * 기존 SearchForm의 라우팅 로직 보존: 제출 시 `/?q=...`.
- * NavigationOverlay가 form submit 이벤트를 감지해 전역 로딩 스피너를 띄움.
  */
 
 'use client';

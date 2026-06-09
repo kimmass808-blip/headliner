@@ -1,7 +1,5 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
-import { Suspense } from 'react';
-import { NavigationOverlay } from '../components/NavigationOverlay';
 import { ServiceWorkerRegistrar } from '../components/ServiceWorkerRegistrar';
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '../lib/site';
 
@@ -66,9 +64,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko">
       <body className="bg-ink-900 text-paper antialiased">
-        <Suspense fallback={null}>
-          <NavigationOverlay />
-        </Suspense>
         {children}
         <ServiceWorkerRegistrar />
       </body>

@@ -39,9 +39,7 @@ export function HeaderSearch() {
     if (open) inputRef.current?.focus();
   }, [open]);
 
-  // submit은 "실제 이동"이 일어날 때만 발생해야 한다.
-  // (NavigationOverlay가 document submit을 감지해 스피너를 띄우고, 라우트 변경
-  //  시에만 해제하므로 — 이동 없는 submit은 무한 로딩을 유발한다.)
+  // submit 시 검색 결과(`/?q=...`)로 이동 → 홈의 loading.tsx 스켈레톤이 표시된다.
   function submit(e: FormEvent) {
     e.preventDefault();
     const trimmed = q.trim();
