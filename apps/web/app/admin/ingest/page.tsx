@@ -6,7 +6,7 @@
  * 이 페이지는 그 테이블을 읽어 "어떤 JSON이 있고, 아직 처리·적재해야 하는지"를 보여준다.
  *
  * 아티스트 명·종류는 IngestSource에 없으므로 핸들로 다른 테이블을 조회해 채운다:
- *   - 이름: Artist.canonicalName → FestivalSeries.name → Festival.name → fullName 순 폴백
+ *   - 이름: Artist.canonicalName → Festival.name → fullName 순 폴백
  *   - 종류: 워치리스트(SeedAccount).kind → IngestSource.kind
  */
 
@@ -110,20 +110,18 @@ export default async function IngestQueuePage() {
 
   // 핸들 → 아티스트명·종류 메타 (IngestSource엔 없으므로 다른 테이블에서 조회·병합).
   const handles = [...pending, ...loaded].map((r) => r.igHandle);
-  const [artists, series, festivals, seeds] = await Promise.all([
+  const [artists, festivals, seeds] = await Promise.all([
     prisma.artist.findMany({ where: { igHandle: { in: handles } }, select: { igHandle: true, canonicalName: true } }),
-    prisma.festivalSeries.findMany({ where: { igHandle: { in: handles } }, select: { igHandle: true, name: true } }),
     prisma.festival.findMany({ where: { igHandle: { in: handles } }, select: { igHandle: true, name: true } }),
     prisma.seedAccount.findMany({ where: { igHandle: { in: handles } }, select: { igHandle: true, kind: true } }),
   ]);
   const artistMap = new Map(artists.map((a) => [a.igHandle, a.canonicalName]));
-  const seriesMap = new Map(series.map((s) => [s.igHandle!, s.name]));
   const festMap = new Map<string, string>();
   for (const f of festivals) if (f.igHandle && !festMap.has(f.igHandle)) festMap.set(f.igHandle, f.name);
   const seedKind = new Map(seeds.map((s) => [s.igHandle, s.kind]));
 
   const metaOf = (r: Row): Meta => ({
-    name: artistMap.get(r.igHandle) ?? seriesMap.get(r.igHandle) ?? festMap.get(r.igHandle) ?? r.fullName ?? null,
+    name: artistMap.get(r.igHandle) ?? festMap.get(r.igHandle) ?? r.fullName ?? null,
     kind: seedKind.get(r.igHandle) ?? r.kind ?? null,
   });
 
