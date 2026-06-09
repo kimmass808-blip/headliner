@@ -94,26 +94,63 @@ function songsFromChapters(chapters: { title: string }[]): ParsedSong[] {
   const songs: ParsedSong[] = [];
   let encore = false;
   for (const c of chapters) {
-    const t = stripIndex(c.title || '');
+    let t = stripIndex(c.title || '');
+    // "(앵콜)" "(encore)" 괄호 표기로 앙코르 감지 후, 후행 괄호 제거
+    const encoreParen = /\((?:앵콜|앙코르|encore)\)/i.test(t);
+    t = t.replace(/\s*\([^)]*\)\s*$/, '').trim();
     const low = t.toLowerCase().trim();
     if (!low) continue;
     if (ENCORE_MARKER.test(low)) { encore = true; continue; }
     if (STOP.has(low)) continue;
-    songs.push({ title: t, isEncore: encore });
+    if (SKIP_SUBSTR.some((s) => low.includes(s))) continue;
+    songs.push({ title: t, isEncore: encore || encoreParen });
   }
   return songs;
 }
 
-// 챕터가 없을 때: 설명란의 "MM:SS 라벨" 줄을 파싱
-function songsFromDescription(desc: string): ParsedSong[] {
-  const lines = desc.split('\n');
-  const chapters: { title: string }[] = [];
-  const re = /^\s*\d{1,2}:\d{2}(?::\d{2})?\s+(.+?)\s*$/;
-  for (const line of lines) {
-    const m = line.match(re);
-    if (m) chapters.push({ title: m[1] });
+// 곡이 아닌 줄(부분 문자열 매칭) — 댓글/설명 타임라인은 챕터보다 지저분해서
+// 솔로·멘트·엔딩 등을 포함하는 줄을 더 적극적으로 거른다.
+const SKIP_SUBSTR = [
+  'drum solo', 'guitar solo', 'bass solo', 'solo',
+  '드럼솔로', '기타솔로', '베이스솔로', '드럼 솔로', '기타 솔로',
+  'ment', '멘트', '맨트', 'ending', '엔딩', 'intro', 'outro', '인사', '입장', '퇴장',
+  '튜닝', 'tuning', '앵콜',
+  // 한국어 무대 섹션 라벨(곡 아님)
+  '시작', '준비', '마무리', '포토타임', '포토 타임', '감사', '하이라이트', '오프닝', '엔드',
+];
+
+// 설명란/댓글의 "MM:SS [구분자] 곡명" 줄을 파싱(타임라인 텍스트 공통).
+// 챕터(songsFromChapters)보다 관대한 정제: 선두 구분자(| - : .)·후행 팬코멘트"(...)" 제거.
+function songsFromTimelineText(text: string): ParsedSong[] {
+  const out: ParsedSong[] = [];
+  let encore = false;
+  for (const rawLine of text.split('\n')) {
+    const m = rawLine.match(/^\s*\d{1,2}:\d{2}(?::\d{2})?\s*[|\-–—:.)]*\s*(.+?)\s*$/);
+    if (!m) continue;
+    let t = m[1].replace(/^[|\-–—:.\s]+/, '').trim(); // 선두 구분자 제거
+    t = t.replace(/\s*\([^)]*\)\s*$/, '').trim();      // 후행 팬코멘트 "(my fav)" 제거
+    t = stripIndex(t);                                  // "1. " 인덱스 제거
+    const low = t.toLowerCase();
+    if (!low) continue;
+    if (ENCORE_MARKER.test(low)) { encore = true; continue; }
+    if (STOP.has(low)) continue;
+    if (SKIP_SUBSTR.some((s) => low.includes(s))) continue;
+    out.push({ title: t, isEncore: encore });
   }
-  return songsFromChapters(chapters);
+  return out;
+}
+
+// 댓글 중 "타임라인 댓글"(MM:SS 줄이 가장 많은 것)을 골라 파싱.
+function songsFromComments(
+  comments: { text: string; like_count?: number; author?: string }[],
+): { songs: ParsedSong[]; author?: string; likes?: number } {
+  const scored = comments
+    .map((c) => ({ c, n: (c.text.match(/\b\d{1,2}:\d{2}\b/g) || []).length }))
+    .filter((x) => x.n >= 4)
+    .sort((a, b) => b.n - a.n || (b.c.like_count || 0) - (a.c.like_count || 0));
+  if (!scored.length) return { songs: [] };
+  const best = scored[0].c;
+  return { songs: songsFromTimelineText(best.text), author: best.author, likes: best.like_count };
 }
 
 // ---- 날짜 추정 (제목 우선, 없으면 업로드일) ------------------------------
@@ -163,20 +200,29 @@ async function main() {
   const info = fetchInfo(URL!);
   const videoId = (URL!.match(/[?&]v=([\w-]{11})/) || URL!.match(/youtu\.be\/([\w-]{11})/) || [])[1] || URL!;
 
-  // 곡 추출: 챕터 우선, 없으면 설명란
+  // 곡 추출 우선순위: 챕터 > 설명란 타임스탬프 > 댓글의 팬 타임라인
   let songs: ParsedSong[] = [];
   let songSource = '';
   if (info.chapters && info.chapters.length) {
     songs = songsFromChapters(info.chapters);
     songSource = `chapters(${info.chapters.length})`;
-  } else if (info.description) {
-    songs = songsFromDescription(info.description);
-    songSource = 'description';
+  }
+  if (songs.length === 0 && info.description) {
+    songs = songsFromTimelineText(info.description);
+    if (songs.length) songSource = 'description';
+  }
+  if (songs.length === 0 && info.comments && info.comments.length) {
+    const r = songsFromComments(info.comments);
+    if (r.songs.length) {
+      songs = r.songs;
+      songSource = `comment(@${r.author ?? '?'}, ${r.likes ?? 0}♥)`;
+    }
   }
 
   if (songs.length === 0) {
-    console.error('\n✗ 타임스탬프/챕터를 찾지 못했습니다. 이 영상은 자동 추출이 어렵습니다.');
-    console.error('  → 설명란이나 댓글의 타임라인을 확인 후 --event/--date 와 함께 수동 보강이 필요할 수 있어요.');
+    console.error('\n✗ 챕터·설명란·댓글 어디에서도 타임라인을 찾지 못했습니다. 자동 추출 불가.');
+    if (!WITH_COMMENTS) console.error('  → 댓글까지 보려면 --with-comments 를 붙여 다시 실행해 보세요.');
+    console.error('  → 그래도 없으면 영상을 보며 --event/--date 와 함께 수동 보강이 필요합니다.');
     process.exit(2);
   }
 

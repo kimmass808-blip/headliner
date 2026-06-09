@@ -844,6 +844,23 @@ async function main() {
     await registerSeed(handle, kind, sourceHandle, stats);
   }
 
+  // ingest 적재 도장: 이 payload의 출처 계정을 IngestSource에서 'loaded'(적재 완료)로 갱신.
+  // (ingest-collect→finalize.mjs가 'collected'로 등록해 둔 행) → /admin/ingest 가 "완료"로 표시.
+  // 수집 기록 없이 수동 적재한 경우엔 행이 없으므로 새로 만들어 둔다. 실패는 경고만(적재는 이미 끝남).
+  if (!DRY && sourceHandle) {
+    const h = normalizeHandle(sourceHandle);
+    const showsLoaded = stats.shows.inserted + stats.shows.updated;
+    try {
+      await prisma.ingestSource.upsert({
+        where: { igHandle: h },
+        create: { igHandle: h, status: 'loaded', loadedAt: new Date(), showsLoaded },
+        update: { status: 'loaded', loadedAt: new Date(), showsLoaded },
+      });
+    } catch (e) {
+      stats.warnings.push(`ingestSource 도장 실패 @${h}: ${(e as Error).message}`);
+    }
+  }
+
   // Audit log
   const logDir = resolve(process.cwd(), '.omc', 'ingest-log');
   if (!DRY) mkdirSync(logDir, { recursive: true });

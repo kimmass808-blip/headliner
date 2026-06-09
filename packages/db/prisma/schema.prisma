@@ -363,3 +363,25 @@ model CrawlRun {
 
   @@index([startedAt])
 }
+
+// v11: ingest 작업 대기열 관측. ingest-collect가 캡션 JSON을 수집하면 여기에 'collected'로
+// 등록되고(finalize.mjs), ingest-show(scripts/ingest.ts)가 적재를 마치면 'loaded'로 도장찍힌다.
+// /admin/ingest 가 이 테이블을 읽어 "처리 대기 / 적재 완료"를 보여준다. PK=igHandle:
+// 같은 계정을 다시 수집하면 같은 행을 덮어쓰며 status가 'collected'로 되돌아간다(재처리 신호).
+model IngestSource {
+  igHandle    String   @id                       // canonical handle (full-<handle>.json)
+  fullName    String?                             // IG 프로필 표시명
+  kind        String?                             // 'artist' | 'festival' (null=미분류)
+  status      String   @default("collected")      // 'collected'(대기) | 'loaded'(완료)
+  fetched     Int      @default(0)                // 수집된 게시물 수
+  mediaCount  Int?                                // 프로필이 신고한 총 게시물 수
+  complete    Boolean?                            // fetched >= mediaCount-3 (완전 수집 여부)
+  filePath    String?                             // /tmp/full-<handle>.json
+  collectedAt DateTime @default(now())            // 마지막 수집 시각
+  loadedAt    DateTime?                           // 마지막 적재 시각
+  showsLoaded Int?                                // 적재 시 생성/갱신된 Show 수
+  note        String?
+
+  @@index([status])
+  @@index([collectedAt])
+}

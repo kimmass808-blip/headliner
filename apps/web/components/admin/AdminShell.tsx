@@ -135,6 +135,7 @@ export function AdminShell({
               badge={pendingCount}
             />
             <NavItem href="/admin/data" icon="table" label="데이터 관리" active={navActive('/admin/data')} />
+            <NavItem href="/admin/ingest" icon="refresh" label="적재 대기열" active={navActive('/admin/ingest')} />
           </div>
           <div className="border-t border-zinc-200 p-3">
             <button

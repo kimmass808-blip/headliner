@@ -140,6 +140,7 @@ async function loadDashboard() {
     seedActive,
     seedPending,
     seedDead,
+    ingestPending,
     crawlRuns,
   ] = await Promise.all([
     prisma.show.count({ where: { status: 'PENDING' } }),
@@ -151,6 +152,7 @@ async function loadDashboard() {
     prisma.seedAccount.count({ where: { status: 'active' } }),
     prisma.seedAccount.count({ where: { status: 'pending' } }),
     prisma.seedAccount.count({ where: { status: 'dead' } }),
+    prisma.ingestSource.count({ where: { status: 'collected' } }),
     prisma.crawlRun.findMany({
       orderBy: { startedAt: 'desc' },
       take: 6,
@@ -177,6 +179,7 @@ async function loadDashboard() {
     seedActive,
     seedPending,
     seedDead,
+    ingestPending,
     crawlRuns,
   };
 }
@@ -273,6 +276,7 @@ export default async function AdminHomePage() {
               <div className="space-y-2">
                 <QuickLink icon="inbox" label="검수 큐 열기" sub={`${d.pending}건 대기 중`} accent href="/admin/review" />
                 <QuickLink icon="table" label="데이터 관리" sub={`승인 ${d.approvedCount}건`} href="/admin/data" />
+                <QuickLink icon="refresh" label="적재 대기열" sub={`처리 대기 ${d.ingestPending}건`} href="/admin/ingest" />
                 <QuickLink icon="database" label="시드 관리" sub={`활성 ${d.seedActive}건`} href="/admin/seeds" />
               </div>
             </div>
