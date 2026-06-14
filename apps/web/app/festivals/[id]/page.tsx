@@ -259,6 +259,7 @@ export default async function FestivalDetailPage({
               id: p.id,
               category: p.category,
               title: p.title,
+              bodyText: p.bodyText,
               imageUrls: p.imageUrls,
             }))}
           />

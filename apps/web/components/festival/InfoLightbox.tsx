@@ -6,11 +6,12 @@ import { getImageUrl } from '../../lib/imageUrl';
 interface InfoLightboxProps {
   images: string[];
   title: string;
+  bodyText?: string | null;
   onClose: () => void;
 }
 
 // IG 캐러셀 원본 이미지를 좌/우 내비게이션으로 보여주는 라이트박스 오버레이.
-export function InfoLightbox({ images, title, onClose }: InfoLightboxProps) {
+export function InfoLightbox({ images, title, bodyText, onClose }: InfoLightboxProps) {
   const [idx, setIdx] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const total = images.length;
@@ -99,11 +100,22 @@ export function InfoLightbox({ images, title, onClose }: InfoLightboxProps) {
         ) : null}
 
         {total > 1 ? (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-[12px] tabular-nums text-paper/80">
+          <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-[12px] tabular-nums text-paper/80">
             {idx + 1} / {total}
           </div>
         ) : null}
       </div>
+
+      {bodyText ? (
+        <div
+          className="absolute inset-x-0 bottom-0 max-h-[35vh] overflow-y-auto border-t border-white/10 bg-black/80 px-6 py-5 backdrop-blur-sm sm:px-12"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <p className="mx-auto max-w-[760px] whitespace-pre-line text-[13.5px] leading-relaxed text-paper/85">
+            {bodyText}
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }

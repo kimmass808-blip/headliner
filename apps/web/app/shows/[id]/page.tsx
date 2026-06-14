@@ -12,6 +12,7 @@ import { ScrapButton } from '../../../components/common/ScrapButton';
 import { PosterColumn } from '../../../components/show/PosterColumn';
 import { InfoColumn } from '../../../components/show/InfoColumn';
 import { SetlistSection } from '../../../components/show/SetlistSection';
+import { ShowIntroSection } from '../../../components/show/ShowIntroSection';
 import type { SongRowData } from '../../../components/show/SongRow';
 import { formatTicketOpen } from '../../../lib/ticketOpen';
 import { ticketVendorFromUrl } from '@mft/shared';
@@ -243,6 +244,9 @@ export default async function ShowDetailPage({
             />
           </div>
         </section>
+
+        {/* 공연 소개(인스타 원문 발췌) — 내용이 있을 때만 렌더. */}
+        <ShowIntroSection text={show.rawTextExcerpt} />
 
         {/* 셋리스트는 곡이 있을 때만 렌더(없으면 컴포넌트가 null 반환). */}
         <SetlistSection songs={songs} />

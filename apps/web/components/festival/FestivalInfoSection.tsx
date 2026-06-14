@@ -16,6 +16,7 @@ export interface FestivalInfoPostData {
   id: string;
   category: InfoCategory;
   title: string | null;
+  bodyText: string | null;
   imageUrls: string[];
 }
 
@@ -23,7 +24,7 @@ export interface FestivalInfoPostData {
 const CATEGORY_LABEL: Record<InfoCategory, string> = {
   TICKET: '티켓·예매',
   MAP: '사이트맵·배치도',
-  TIMETABLE: '타임테이블',
+  TIMETABLE: '타임테이블/라인업',
   ACCESS: '교통·주차',
   RULES: '입장·반입 규정',
   FAQ: 'FAQ',
@@ -104,6 +105,11 @@ export function FestivalInfoSection({ posts }: { posts: FestivalInfoPostData[] }
                       ) : null}
                     </div>
                     <p className="mt-3 truncate text-[13.5px] font-medium text-paper">{caption}</p>
+                    {p.bodyText ? (
+                      <p className="mt-1.5 line-clamp-3 whitespace-pre-line text-[12.5px] leading-relaxed text-paper/55">
+                        {p.bodyText}
+                      </p>
+                    ) : null}
                   </button>
                 );
               })}
@@ -116,6 +122,7 @@ export function FestivalInfoSection({ posts }: { posts: FestivalInfoPostData[] }
         <InfoLightbox
           images={active.imageUrls}
           title={active.title || CATEGORY_LABEL[active.category]}
+          bodyText={active.bodyText}
           onClose={() => setActive(null)}
         />
       ) : null}
