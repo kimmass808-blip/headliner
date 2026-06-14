@@ -10,6 +10,7 @@
  * 정보 중복이라 제거. 큐레이션된 소개글이 필요해지면 별도 필드로 추가.
  */
 
+import Link from 'next/link';
 import { ArrowUpRight } from '../common/Icons';
 import { MetaRow } from '../common/MetaRow';
 
@@ -28,12 +29,14 @@ export interface FestivalInfoColumnProps {
   ticketLabel: string | null;
   ticketOpenLabel: string | null; // '예매 오픈' 표시용. '6.15 (목) 20:00' | null
   officialUrl: string | null;
+  /** 부모 시리즈(브랜드) — 있으면 헤드라인 아래 링크 칩 표시. */
+  series?: { id: string; name: string } | null;
 }
 
 export function FestivalInfoColumn(props: FestivalInfoColumnProps) {
   const {
     name, dateText, startMonthDay, dayBadge, dayKrRange,
-    venueName, city, ticketUrl, ticketLabel, ticketOpenLabel, officialUrl,
+    venueName, city, ticketUrl, ticketLabel, ticketOpenLabel, officialUrl, series,
   } = props;
 
   return (
@@ -61,6 +64,17 @@ export function FestivalInfoColumn(props: FestivalInfoColumnProps) {
       <h1 className="mt-5 text-[44px] font-bold leading-[0.95] tracking-[-0.035em] text-paper sm:text-[52px] lg:text-[60px]">
         {name}
       </h1>
+
+      {/* 부모 시리즈(브랜드)로 가는 링크 — 역대 에디션 모아보기 */}
+      {series ? (
+        <Link
+          href={`/series/${series.id}`}
+          className="mt-4 inline-flex w-fit items-center gap-1.5 rounded-full border border-white/15 px-3.5 py-1.5 text-[13px] text-paper/75 transition-colors hover:border-white/35 hover:text-paper"
+        >
+          <span>{series.name}</span>
+          <ArrowUpRight className="h-3.5 w-3.5" />
+        </Link>
+      ) : null}
 
       {/* 메타 dl */}
       <dl className="hairline-t mt-10">

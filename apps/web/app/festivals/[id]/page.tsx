@@ -106,6 +106,7 @@ export default async function FestivalDetailPage({
     where: { id },
     include: {
       venue: true,
+      series: { select: { id: true, name: true, status: true } },
       shows: {
         where: { status: 'APPROVED', duplicateOfShowId: null }, // v7
         include: {
@@ -247,6 +248,11 @@ export default async function FestivalDetailPage({
               ticketLabel={festival.ticketUrl ? (ticketVendorFromUrl(festival.ticketUrl) ?? '예매 페이지') : null}
               ticketOpenLabel={formatTicketOpen(festival.ticketOpenAt)}
               officialUrl={festival.officialUrl}
+              series={
+                festival.series && festival.series.status === 'APPROVED'
+                  ? { id: festival.series.id, name: festival.series.name }
+                  : null
+              }
             />
           </div>
         </section>
