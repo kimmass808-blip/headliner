@@ -89,15 +89,39 @@ model SpotifyMatchCandidate {
 }
 
 model Venue {
-  id           String     @id @default(cuid())
-  name         String
-  canonicalKey String     @unique
-  address      String?
-  region       String?
-  lat          Float?
-  lng          Float?
-  shows        Show[]
-  festivals    Festival[]
+  id             String           @id @default(cuid())
+  name           String
+  canonicalKey   String           @unique
+  address        String?
+  region         String?
+  lat            Float?
+  lng            Float?
+  shows          Show[]
+  festivals      Festival[]
+  festivalSeries FestivalSeries[] // defaultVenue 역참조
+}
+
+// v9: 페스티벌 시리즈(부모). 같은 페스티벌이 매년 반복되므로, 연도별 회차(Festival)를
+// 묶는 상위 정체성. 이름·로고·계정·소개 등 잘 안 바뀌는 정보를 한 번만 보관한다.
+// canonicalKey는 연도 없는 안정 키("pentaport"); 회차 Festival.canonicalKey는
+// 연도 포함("pentaport-2025")을 그대로 유지해 역할을 분리한다.
+model FestivalSeries {
+  id             String       @id @default(cuid())
+  name           String
+  canonicalKey   String       @unique
+  aliases        String[]
+  igHandle       String?      @unique
+  officialUrl    String?
+  description    String?      @db.Text
+  logoImageUrl   String?
+  defaultVenueId String?
+  defaultVenue   Venue?       @relation(fields: [defaultVenueId], references: [id])
+  editions       Festival[]
+  status         ReviewStatus @default(PENDING)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([status])
 }
 
 model VenueAlias {
@@ -125,6 +149,11 @@ model Festival {
   igHandle       String?   @unique
   posterImageUrl String?
   description    String?
+  rawTextExcerpt String?      @db.Text  // 대표 라인업 발표 게시물의 원문 캡션(아카이브). description(SEO 소개)과 분리.
+  // v9: 부모 시리즈 연결 (nullable — 단발성 페스티벌도 허용).
+  seriesId       String?
+  series         FestivalSeries? @relation(fields: [seriesId], references: [id])
+  editionYear    Int?      // 2025, 2026 … 시리즈 내 정렬·표시용 (선택)
   shows          Show[]
   infoPosts      FestivalInfo[]
   // v5: completeness 모델 일관 적용
@@ -141,6 +170,7 @@ model Festival {
   @@index([startDate, endDate])
   @@index([completeness])
   @@index([status])
+  @@index([seriesId])
 }
 
 // v5: 합병 이력 추적 (Critic MAJOR — AC-5b 보강).
@@ -272,7 +302,10 @@ model SeedAccount {
   igHandle         String    @id // canonical
   kind             String    // 'festival' | 'artist' | 'venue'
   status           String    // 'pending' | 'active' | 'dead' | 'rejected'
-  addedBy          String    // 'operator' | 'snowball'
+  // 큐레이션 구분(아티스트 대상). 페이지는 'band' 위주로 노출하므로 워치리스트 단계에서 거른다.
+  artistType       String?   // 'band' | 'rapper' | 'other' (null = 미분류)
+  origin           String?   // 'domestic' | 'overseas'    (null = 미분류)
+  addedBy          String    // 'operator' | 'snowball' | 'ingest'
   sourceSeedHandle String?   // snowball provenance — references SeedAccount.igHandle
   addedAt          DateTime  @default(now())
   promotedAt       DateTime?
@@ -281,6 +314,7 @@ model SeedAccount {
   removedAt        DateTime?
 
   @@index([status, lastFetched])
+  @@index([artistType])
 }
 
 // v7: 운영자가 /admin/review에서 row를 편집·승인·거절할 때 한 행씩 누적.
