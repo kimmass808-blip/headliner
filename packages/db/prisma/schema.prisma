@@ -385,3 +385,19 @@ model IngestSource {
   @@index([status])
   @@index([collectedAt])
 }
+
+// v12: 일반 사용자(페스티벌 관람객) 프로필. 인증 자체는 Supabase Auth가 auth.users에서
+// 관리하고, public 스키마에는 표시용 프로필만 둔다. id = auth.users.id(uuid)를 그대로 PK로
+// 재사용 → 첫 로그인 시 콜백에서 upsert(중복 생성 없음). 향후 업로드 글/사진이 이 id를 FK로 참조.
+// admin(mft_admin 쿠키) 시스템과 완전히 분리된 별개 레이어.
+model Profile {
+  id            String    @id                  // = auth.users.id (Supabase Auth UUID)
+  nickname      String?                         // 카카오 닉네임 (provider metadata)
+  avatarUrl     String?                         // 카카오 프로필 이미지 URL
+  // 약관·개인정보처리방침 동의 기록. 첫 로그인 후 /agree에서 동의하면 시각·버전을 남긴다.
+  // agreedAt이 null이면 미동의 상태 → 가입 미완료로 보고 /agree로 유도.
+  agreedAt      DateTime?                        // 약관 동의 시각 (null=미동의)
+  agreedVersion String?                          // 동의한 약관 버전(예: '2026-06-14'). 약관 개정 시 재동의 유도용.
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
+}

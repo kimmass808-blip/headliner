@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { MobileNav } from './MobileNav';
 import { HeaderSearch } from './HeaderSearch';
 import { NAV_ITEMS } from './nav-items';
+import { AuthMenu } from '../auth/AuthMenu';
 
 export function HomeHeader() {
   return (
@@ -31,6 +32,8 @@ export function HomeHeader() {
 
         <div className="flex items-center gap-3">
           <HeaderSearch />
+          {/* 로그인 슬롯 — 클라이언트에서 세션을 읽는다(서버 쿠키 미사용 → 페이지 ISR 캐시 유지). */}
+          <AuthMenu />
           <MobileNav />
         </div>
       </div>

@@ -13,6 +13,7 @@ import { PosterColumn } from '../../../components/show/PosterColumn';
 import { InfoColumn } from '../../../components/show/InfoColumn';
 import { SetlistSection } from '../../../components/show/SetlistSection';
 import { ShowIntroSection } from '../../../components/show/ShowIntroSection';
+import { PhotoUploadGate } from '../../../components/auth/PhotoUploadGate';
 import type { SongRowData } from '../../../components/show/SongRow';
 import { formatTicketOpen } from '../../../lib/ticketOpen';
 import { ticketVendorFromUrl } from '@mft/shared';
@@ -250,6 +251,9 @@ export default async function ShowDetailPage({
 
         {/* 셋리스트는 곡이 있을 때만 렌더(없으면 컴포넌트가 null 반환). */}
         <SetlistSection songs={songs} />
+
+        {/* lazy login: 기여 행동(사진 올리기) 진입점에서만 로그인 유도(클라이언트에서 세션 확인). */}
+        <PhotoUploadGate />
       </main>
     </div>
   );

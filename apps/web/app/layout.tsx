@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import { ServiceWorkerRegistrar } from '../components/ServiceWorkerRegistrar';
+import { Footer } from '../components/common/Footer';
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '../lib/site';
 
 const TITLE = 'HEADLINER — 국내 인디 공연·페스티벌';
@@ -65,6 +66,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ko">
       <body className="bg-ink-900 text-paper antialiased">
         {children}
+        <Footer />
         <ServiceWorkerRegistrar />
       </body>
     </html>
