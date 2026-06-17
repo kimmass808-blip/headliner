@@ -51,8 +51,8 @@ export function PosterCard(props: HomePosterCardProps) {
 
   return (
     <Link href={href} className="poster-card group block">
-      {/* 3:4 포스터 */}
-      <div className="relative aspect-[3/4] overflow-hidden rounded-md bg-ink-700">
+      {/* 4:5 포스터 (IG 포스터 대다수가 4:5 — 좌우 잘림 방지) */}
+      <div className="relative aspect-[4/5] overflow-hidden rounded-md bg-ink-700">
         {src ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img

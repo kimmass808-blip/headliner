@@ -160,7 +160,7 @@ export function ScrappedView() {
         <div className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="animate-pulse">
-              <div className="aspect-[3/4] w-full rounded-lg bg-white/[0.04]" />
+              <div className="aspect-[4/5] w-full rounded-lg bg-white/[0.04]" />
               <div className="mt-3 h-3 w-2/3 rounded bg-white/[0.04]" />
               <div className="mt-2 h-3 w-1/3 rounded bg-white/[0.04]" />
             </div>
