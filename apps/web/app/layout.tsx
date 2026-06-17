@@ -1,5 +1,6 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
+import { Analytics } from '@vercel/analytics/next';
 import { ServiceWorkerRegistrar } from '../components/ServiceWorkerRegistrar';
 import { Footer } from '../components/common/Footer';
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '../lib/site';
@@ -68,6 +69,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {children}
         <Footer />
         <ServiceWorkerRegistrar />
+        <Analytics />
       </body>
     </html>
   );

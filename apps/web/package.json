@@ -10,13 +10,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@mft/db": "workspace:*",
     "@mft/canonicalize": "workspace:*",
-    "@mft/shared": "workspace:*",
-    "@mft/search": "workspace:*",
-    "@mft/normalizer": "workspace:*",
     "@mft/crawler": "workspace:*",
+    "@mft/db": "workspace:*",
+    "@mft/normalizer": "workspace:*",
+    "@mft/search": "workspace:*",
+    "@mft/shared": "workspace:*",
     "@prisma/client": "^5.22.0",
+    "@vercel/analytics": "^2.0.1",
     "bcryptjs": "^2.4.3",
     "jose": "^5.9.0",
     "next": "^15.0.0",
